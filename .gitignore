@@ -1,0 +1,4 @@
+node_modules/
+dist/
+.img2threejs/
+.DS_Store

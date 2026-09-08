@@ -1,0 +1,594 @@
+{
+ "targetName": "Macintosh 128K Desktop Set",
+ "sourceImage": "reference/ref-setup-34.jpg",
+ "preSpecAssessment": {
+  "objectClass": {
+   "primaryType": "vintage all-in-one desktop computer set (Macintosh 128K style): chassis + keyboard + mouse + two cables",
+   "primaryDomain": "object",
+   "formLanguage": [
+    "geometric",
+    "chamfered-cuboid",
+    "low-poly-stylized"
+   ],
+   "structureKind": [
+    "multi-unit-assembly",
+    "shell-and-fascia",
+    "repeated-key-array",
+    "helix-cable"
+   ],
+   "motionPotential": [
+    "orbit-showpiece",
+    "clickable-parts",
+    "explodable",
+    "interactive-screen-ui"
+   ],
+   "materialFamilies": [
+    "cream-ABS-plastic",
+    "warm-grey-ABS-plastic",
+    "dark-cable-rubber",
+    "emissive-1bit-screen"
+   ],
+   "notes": "Identity anchored by System 1.0 Finder UI on screen; two-tone cream/grey split at fascia seam. Stylized low-poly target matching reference renders, not photoreal CRT."
+  },
+  "complexity": {
+   "tier": "complex",
+   "scores": {
+    "silhouetteComplexity": 0.55,
+    "componentCount": 0.8,
+    "hierarchyDepth": 0.7,
+    "repetitionDensity": 0.75,
+    "materialLayerCount": 0.5,
+    "localDetailDensity": 0.7,
+    "occlusionRisk": 0.35,
+    "actionReadinessNeed": 0.9
+   },
+   "estimatedCounts": {
+    "macroComponents": 5,
+    "mesoComponents": 14,
+    "microFeatureGroups": 10,
+    "materialLayers": 6,
+    "repetitionSystems": 2
+   },
+   "reasoning": [
+    "Three rigid units plus two cables = 5 macro components with clear parent-child depth (chassis>fascia>bezel>screen).",
+    "~58-key array and coiled-cable helix are repetition systems requiring parametric generation.",
+    "Screen carries a live 1-bit Finder UI (canvas texture) \u2014 highest-value identity feature.",
+    "Boxy chamfered forms keep silhouette complexity moderate; occlusion low thanks to 5 views."
+   ]
+  },
+  "specDepthDecision": {
+   "requiredDepth": "complex",
+   "minimumComponentLevels": [
+    "macro",
+    "meso",
+    "micro"
+   ],
+   "needsRepetitionSystems": true,
+   "needsMaterialLocalOverrides": true,
+   "needsMultipleReviewViews": true,
+   "needsActionReadyHierarchy": true,
+   "rationale": "Complex: multi-unit assembly, two repetition systems (keys, coil), micro fascia details (floppy slot, knob, jacks), interactive screen texture, action-ready + clickable requirement."
+  },
+  "unknownsToResolveBeforeImplementation": [
+   "Rear port cluster exact layout (stylize from era-typical; approximate, flagged)",
+   "Undersides of all units hidden (flat bases assumed)",
+   "Exact per-key legends partially unreadable (use canonical M0110 layout)",
+   "Coil turn count varies by view (target 18-24 visual turns)"
+  ],
+  "detailInventory": {
+   "scanMethod": "grid-3x3",
+   "targetMinDetails": 12,
+   "note": "Enumerate every identity-defining small detail before authoring the spec. Each detail must map to a component.localFeatures entry or material.localOverrides entry, never prose only. Use forge/stage1_intake/build_detail_inventory.py to scan zones.",
+   "details": [
+    {
+     "id": "finder-ui",
+     "kind": "surface-graphic",
+     "description": "1-bit System 1.0 Finder UI: menu bar (apple,File,Edit,View,Special), 'System 1.0 disk' window (4 items/196K/201K), 4 icons, disk tabs right edge, Trash, scrollbars; black on pale-grey",
+     "region": {
+      "x": 0.4,
+      "y": 0.17,
+      "width": 0.25,
+      "height": 0.2,
+      "units": "normalized"
+     },
+     "scale": "micro",
+     "affects": "identity",
+     "mapsTo": {
+      "type": "component.localFeatures",
+      "ref": "screen-panel.finderUiCanvas"
+     },
+     "evidenceRef": ".img2threejs/di-zones/zone-r0c1.png",
+     "confidence": 0.97
+    },
+    {
+     "id": "floppy-slot",
+     "kind": "recess",
+     "description": "Rounded-rect recess plate on fascia lower-right with horizontal slit and round eject pinhole at right end",
+     "region": {
+      "x": 0.48,
+      "y": 0.49,
+      "width": 0.14,
+      "height": 0.06,
+      "units": "normalized"
+     },
+     "scale": "micro",
+     "affects": "identity",
+     "mapsTo": {
+      "type": "component.localFeatures",
+      "ref": "front-fascia.floppySlot"
+     },
+     "evidenceRef": ".img2threejs/di-zones/zone-r1c1.png",
+     "confidence": 0.95
+    },
+    {
+     "id": "brightness-knob",
+     "kind": "recess+knob",
+     "description": "Small square recess with knurled knob, fascia lower-left below bezel corner",
+     "region": {
+      "x": 0.37,
+      "y": 0.45,
+      "width": 0.04,
+      "height": 0.05,
+      "units": "normalized"
+     },
+     "scale": "micro",
+     "affects": "identity",
+     "mapsTo": {
+      "type": "component.localFeatures",
+      "ref": "front-fascia.brightnessKnob"
+     },
+     "evidenceRef": ".img2threejs/di-zones/zone-r1c1.png",
+     "confidence": 0.9
+    },
+    {
+     "id": "bezel-recess",
+     "kind": "inset-frame",
+     "description": "Deep trapezoid CRT bezel recess, wide border, rounded inner corners, chamfered lip",
+     "region": {
+      "x": 0.38,
+      "y": 0.14,
+      "width": 0.28,
+      "height": 0.3,
+      "units": "normalized"
+     },
+     "scale": "meso",
+     "affects": "identity",
+     "mapsTo": {
+      "type": "component.localFeatures",
+      "ref": "front-fascia.crtBezel"
+     },
+     "evidenceRef": ".img2threejs/di-zones/zone-r0c1.png",
+     "confidence": 0.95
+    },
+    {
+     "id": "coil-cable",
+     "kind": "helix",
+     "description": "Dense coiled keyboard cable ~18-24 turns, sag between keyboard rear and chassis front-bottom jack",
+     "region": {
+      "x": 0.3,
+      "y": 0.52,
+      "width": 0.3,
+      "height": 0.14,
+      "units": "normalized"
+     },
+     "scale": "meso",
+     "affects": "identity",
+     "mapsTo": {
+      "type": "component.localFeatures",
+      "ref": "keyboard-cable.helix"
+     },
+     "evidenceRef": ".img2threejs/di-zones/zone-r1c1.png",
+     "confidence": 0.9
+    },
+    {
+     "id": "key-array",
+     "kind": "repetition",
+     "description": "~58 truncated-pyramid keycaps, 5 rows, wide end modifiers, space bar, engraved legends",
+     "region": {
+      "x": 0.1,
+      "y": 0.55,
+      "width": 0.5,
+      "height": 0.22,
+      "units": "normalized"
+     },
+     "scale": "meso",
+     "affects": "identity",
+     "mapsTo": {
+      "type": "component.localFeatures",
+      "ref": "keyboard.keyField"
+     },
+     "evidenceRef": ".img2threejs/di-zones/zone-r1c0.png",
+     "confidence": 0.95
+    },
+    {
+     "id": "mouse-button",
+     "kind": "inset-plate",
+     "description": "Single wide rounded-rect button plate inset at mouse front top, darker grey",
+     "region": {
+      "x": 0.6,
+      "y": 0.78,
+      "width": 0.12,
+      "height": 0.08,
+      "units": "normalized"
+     },
+     "scale": "micro",
+     "affects": "identity",
+     "mapsTo": {
+      "type": "component.localFeatures",
+      "ref": "mouse.buttonPlate"
+     },
+     "evidenceRef": ".img2threejs/di-zones/zone-r2c2.png",
+     "confidence": 0.92
+    },
+    {
+     "id": "mouse-badge",
+     "kind": "recess",
+     "description": "Small rectangular emblem recess center of mouse body",
+     "region": {
+      "x": 0.58,
+      "y": 0.84,
+      "width": 0.05,
+      "height": 0.04,
+      "units": "normalized"
+     },
+     "scale": "micro",
+     "affects": "secondary",
+     "mapsTo": {
+      "type": "component.localFeatures",
+      "ref": "mouse.badgeRecess"
+     },
+     "evidenceRef": ".img2threejs/di-zones/zone-r2c2.png",
+     "confidence": 0.8
+    },
+    {
+     "id": "two-tone-seam",
+     "kind": "color-split",
+     "description": "Cream fascia vs warm-grey shell bucket split at fascia seam; pedestal darker",
+     "region": {
+      "x": 0.35,
+      "y": 0.1,
+      "width": 0.55,
+      "height": 0.55,
+      "units": "normalized"
+     },
+     "scale": "macro",
+     "affects": "identity",
+     "mapsTo": {
+      "type": "material.localOverrides",
+      "ref": "chassis-shell.twoTone"
+     },
+     "evidenceRef": ".img2threejs/di-zones/zone-r0c1.png",
+     "confidence": 0.95
+    },
+    {
+     "id": "rear-vents",
+     "kind": "slot-array",
+     "description": "Horizontal vent slats on pedestal rear/side; badge stripes lower-left of shell",
+     "region": {
+      "x": 0.68,
+      "y": 0.55,
+      "width": 0.18,
+      "height": 0.08,
+      "units": "normalized"
+     },
+     "scale": "micro",
+     "affects": "secondary",
+     "mapsTo": {
+      "type": "component.localFeatures",
+      "ref": "pedestal.rearVents"
+     },
+     "evidenceRef": ".img2threejs/di-zones/zone-r1c2.png",
+     "confidence": 0.75
+    },
+    {
+     "id": "cable-jacks",
+     "kind": "socket-recess",
+     "description": "Front-bottom pedestal recess with keyboard jack; rear-bottom socket plate where mouse cable enters",
+     "region": {
+      "x": 0.55,
+      "y": 0.58,
+      "width": 0.14,
+      "height": 0.06,
+      "units": "normalized"
+     },
+     "scale": "micro",
+     "affects": "identity",
+     "mapsTo": {
+      "type": "component.localFeatures",
+      "ref": "pedestal.jackRecess"
+     },
+     "evidenceRef": ".img2threejs/di-zones/zone-r1c1.png",
+     "confidence": 0.85
+    },
+    {
+     "id": "top-rear-chamfer",
+     "kind": "bevel",
+     "description": "Large chamfer/step across shell top-rear (carry recess)",
+     "region": {
+      "x": 0.55,
+      "y": 0.1,
+      "width": 0.25,
+      "height": 0.1,
+      "units": "normalized"
+     },
+     "scale": "meso",
+     "affects": "secondary",
+     "mapsTo": {
+      "type": "component.localFeatures",
+      "ref": "chassis-shell.topChamfer"
+     },
+     "evidenceRef": ".img2threejs/di-zones/zone-r0c2.png",
+     "confidence": 0.85
+    },
+    {
+     "id": "power-switch",
+     "kind": "micro-plate",
+     "description": "Small rectangular switch detail low on fascia left edge near seam",
+     "region": {
+      "x": 0.385,
+      "y": 0.47,
+      "width": 0.02,
+      "height": 0.03,
+      "units": "normalized"
+     },
+     "scale": "micro",
+     "affects": "secondary",
+     "mapsTo": {
+      "type": "component.localFeatures",
+      "ref": "front-fascia.powerSwitch"
+     },
+     "evidenceRef": ".img2threejs/di-zones/zone-r1c1.png",
+     "confidence": 0.7
+    },
+    {
+     "id": "keyboard-midband",
+     "kind": "two-tier-tray",
+     "description": "Dark grey mid band between cream top tray and cream base skirt of keyboard",
+     "region": {
+      "x": 0.1,
+      "y": 0.6,
+      "width": 0.5,
+      "height": 0.18,
+      "units": "normalized"
+     },
+     "scale": "meso",
+     "affects": "secondary",
+     "mapsTo": {
+      "type": "component.localFeatures",
+      "ref": "keyboard.midBand"
+     },
+     "evidenceRef": ".img2threejs/di-zones/zone-r2c0.png",
+     "confidence": 0.9
+    }
+   ]
+  },
+  "anatomy": {
+   "applies": false,
+   "styleHeads": 0.0,
+   "proportions": {
+    "headUnit": 0.0,
+    "torso": 0.0,
+    "legs": 0.0,
+    "shoulderWidth": 0.0,
+    "hipWidth": 0.0
+   },
+   "pose": {
+    "type": "unassessed",
+    "jointAngles": {}
+   },
+   "faceLandmarks": {
+    "eyeLine": 0.0,
+    "eyeSpacing": 0.0,
+    "noseBase": 0.0,
+    "mouthLine": 0.0,
+    "hairline": 0.0
+   },
+   "features": [],
+   "confidence": 0.0,
+   "note": "Only meaningful when objectClass.primaryDomain is character or hybrid. Set applies=true and fill from forge/stage1_intake/extract_landmarks.py. See grimoire/character/reconstruction.md and grimoire/character/likeness_maximization.md."
+  },
+  "sourceImage": "reference/ref-setup-34.jpg"
+ },
+ "qualityContract": {
+  "qualityBar": "complex",
+  "definitionOfDone": [
+   "The rendered model matches the reference silhouette, primary proportions, visible component hierarchy, material response, and most recognizable local features for the selected fidelity tier."
+  ],
+  "minimumSpecDepth": {
+   "macroComponents": 3,
+   "mesoComponents": 8,
+   "microFeatureGroups": 5,
+   "materialLayers": 3,
+   "repetitionSystems": 1,
+   "reviewViewpoints": 4
+  },
+  "featureGroups": [
+   {
+    "id": "overall-silhouette",
+    "name": "Overall silhouette and proportions",
+    "required": true,
+    "qualityCriteria": [
+     "Bounding shape, dominant curves, negative spaces, and scale relationships are explicitly described."
+    ],
+    "evidenceRefs": [
+     "full-object"
+    ],
+    "failureModes": [
+     "model reads as a generic placeholder instead of the reference object",
+     "major proportions are guessed without evidence"
+    ]
+   },
+   {
+    "id": "primary-structure",
+    "name": "Primary structure and hierarchy",
+    "required": true,
+    "qualityCriteria": [
+     "Major parts, joints, seams, contact points, and parent-child relationships are named before code generation."
+    ],
+    "evidenceRefs": [
+     "full-object"
+    ],
+    "failureModes": [
+     "large visible parts are merged into one mesh",
+     "component hierarchy is too shallow for the observed complexity"
+    ]
+   },
+   {
+    "id": "attachment-joint-correctness",
+    "name": "Attachment and joint correctness",
+    "required": true,
+    "qualityCriteria": [
+     "Every visible child appendage, branch, limb, handle, connector, tube, cable, horn, wing, leg, or hinged part has an attachment contract with parent socket, localStart/localEnd, contact type, embed/overlap, and gap tolerance."
+    ],
+    "evidenceRefs": [
+     "full-object"
+    ],
+    "failureModes": [
+     "child part root floats away from the parent",
+     "branch/limb/tube is centered in space instead of pivoting from its root",
+     "parent-child transform mixes world and local coordinates"
+    ]
+   },
+   {
+    "id": "surface-material-response",
+    "name": "Surface material response",
+    "required": true,
+    "qualityCriteria": [
+     "Albedo zones, roughness, normal/bump/displacement intent, cavity dirt, edge wear, and local overrides are specified where visible.",
+     "Important materials define independent albedo, roughness, height/normal, and AO responses instead of reusing one texture for unrelated PBR channels.",
+     "Surface response is decomposed into macro, meso, and micro frequency bands with scale and amplitude tied to object scale."
+    ],
+    "evidenceRefs": [
+     "full-object"
+    ],
+    "failureModes": [
+     "surface looks like flat plastic",
+     "local material variation is missing or not tied to image evidence"
+    ]
+   },
+   {
+    "id": "reference-lookdev",
+    "name": "Reference color, material, and lighting response",
+    "required": true,
+    "qualityCriteria": [
+     "Material-pass names the reference-derived albedo palette, roughness variation, tactile normal/bump/displacement response, and local masks.",
+     "When a source image is available, run reference PBR extraction and require confidence >= 0.7 before treating maps as implementation-ready.",
+     "Lighting-pass names key/fill/rim or environment light, exposure, tone mapping, background, and contact shadow behavior.",
+     "Neutral, grazing-angle, and reference-matched renders prove that surface relief survives relighting and is not painted into albedo."
+    ],
+    "evidenceRefs": [
+     "full-object"
+    ],
+    "failureModes": [
+     "model has acceptable shape but reads as flat shaded or plastic",
+     "colors are a generic average instead of reference-observed local color zones",
+     "lighting is evenly ambient and cannot reproduce the source value range"
+    ]
+   }
+  ],
+  "visualDeltaChecks": [
+   "silhouette and negative-space delta",
+   "component hierarchy depth delta",
+   "repetition density and distribution delta",
+   "material albedo/roughness/normal response delta",
+   "local feature placement and scale delta"
+  ],
+  "antiShallowSpecRules": [
+   "Do not proceed to code if qualityContract.qualityBar is unassessed.",
+   "Do not proceed to code if the spec only contains a root component for a moderate or complex object.",
+   "Do not proceed to code if required featureGroups are not represented by componentTree, materials, or repetitionSystems.",
+   "Do not proceed to code if visible local features are described only in prose and not attached to components/materials/evidenceRefs.",
+   "Do not proceed past structural-pass if attached child parts lack attachment.parentSocket, localStart, localEnd, embedDepth/overlap, and gapTolerance.",
+   "Do not pass material look-dev when albedo is reused as roughness, height, normal, or AO.",
+   "Do not pass material look-dev without macro, meso, and micro surface frequency bands for close-up materials.",
+   "Do not pass reference-fidelity material look-dev from a source image without usable referencePbr maps or an explicit documented limitation.",
+   "Do not patch a spec with extracted PBR maps when extraction confidence is below the target threshold unless the user explicitly accepts lower fidelity.",
+   "Do not place adjacent separate-geometry parts below 0.02 world-unit seam overlap (source: grimoire/build/geometry_patterns.md).",
+   "Do not satisfy raised or recessed relief, fasteners, or grip structure with a map alone when the feature affects form; use geometry or displacement (source: grimoire/build/geometry_patterns.md)."
+  ]
+ },
+ "authoringInstruction": "Fill observed object class, complexity reasoning, featureGroups, visualDeltaChecks, and unknowns before generating or implementing ObjectSculptSpec.",
+ "localSpecSearch": {
+  "collection": "core_3d",
+  "query": "Macintosh 128K Desktop Set",
+  "index": {
+   "status": "hit",
+   "reason": "current",
+   "fingerprint": "62f2831e1d52eeb6dbb94a87c44fa25b1f4926626a7b1f8c2bcadc63e04e9471"
+  },
+  "matches": [
+   {
+    "record_id": "core.shader-mapping-meshphysicalmaterial-core-pbr-fields",
+    "file_path": "docs/raw/img2threejs-skill-dataset.json",
+    "heading": null,
+    "key_path": "categories.rendering_shader_mapping[0]",
+    "score": 2.662326710191,
+    "snippets": [
+     "The baseline Three.js material exposing direct scalar/map fields for the standard PBR channel set. V\u1eadt li\u1ec7u Three.js c\u01a1 b\u1ea3n cung c\u1ea5p tr\u1ef1c ti\u1ebfp c\u00e1c tr\u01b0\u1eddng v\u00f4 h\u01b0\u1edbng/b\u1ea3n \u0111\u1ed3 cho b\u1ed9 k\u00eanh PBR ti\u00eau chu\u1ea9n. Recognition cues: Use whenever a static ..."
+    ],
+    "source_refs": [
+     {
+      "path": "docs/raw/img2threejs-skill-dataset.json",
+      "heading": null,
+      "key_path": "categories.rendering_shader_mapping[0]"
+     }
+    ],
+    "evidence_refs": [
+     {
+      "kind": "source",
+      "ref": "docs/raw/img2threejs-skill-dataset.json",
+      "note": "img2threejs NotebookLM research distillation"
+     }
+    ]
+   },
+   {
+    "record_id": "core.shader-mapping-uvcoordinate-system-conversion-attachment-hierarchy",
+    "file_path": "docs/raw/img2threejs-skill-dataset.json",
+    "heading": null,
+    "key_path": "categories.rendering_shader_mapping[14]",
+    "score": 2.120316187009,
+    "snippets": [
+     "... v\u1edbi node cha Three.js target: THREE.Object3D parent-child hierarchy with each sub-part's local .position/.quaternion set to the source engine's named attachment-socket transform; flip texture.flipY / negate one axis if handedness ..."
+    ],
+    "source_refs": [
+     {
+      "path": "docs/raw/img2threejs-skill-dataset.json",
+      "heading": null,
+      "key_path": "categories.rendering_shader_mapping[14]"
+     }
+    ],
+    "evidence_refs": [
+     {
+      "kind": "source",
+      "ref": "docs/raw/img2threejs-skill-dataset.json",
+      "note": "img2threejs NotebookLM research distillation"
+     }
+    ]
+   },
+   {
+    "record_id": "core.pbr-hand-painted-vs-pbr-texture",
+    "file_path": "docs/raw/img2threejs-skill-dataset.json",
+    "heading": null,
+    "key_path": "categories.material_pbr[12]",
+    "score": 1.99625477232,
+    "snippets": [
+     "... m\u00f4 (l\u1ed7 ch\u00e2n l\u00f4ng, v\u1ebft x\u01b0\u1edbc) c\u00f3 b\u00f3ng \u0111\u1ed5 theo h\u01b0\u1edbng t\u1eeb normal/roughness map Three.js target: Hand-painted \u2192 single .map (baked lighting, SRGBColorSpace); PBR \u2192 full MeshPhysicalMaterial channel set (map/normalMap/roughnessMap/metalnessMap/aoMap)"
+    ],
+    "source_refs": [
+     {
+      "path": "docs/raw/img2threejs-skill-dataset.json",
+      "heading": null,
+      "key_path": "categories.material_pbr[12]"
+     }
+    ],
+    "evidence_refs": [
+     {
+      "kind": "source",
+      "ref": "docs/raw/img2threejs-skill-dataset.json",
+      "note": "img2threejs NotebookLM research distillation"
+     }
+    ]
+   }
+  ]
+ }
+}
