@@ -141,6 +141,7 @@ export class FinderCanvas {
   private ctx: CanvasRenderingContext2D;
   onChange: (() => void) | null = null;
   onMusicCommand: ((cmd: MusicCommand) => void) | null = null;
+  onShutDown: (() => void) | null = null;
   /** While true (boot sequence), draw() is a no-op so boot frames own the canvas. */
   suspended = false;
 
@@ -1502,6 +1503,13 @@ export class FinderCanvas {
       this.trashed.length = 0;
       const tw = s.windows.find((w) => w.id === 'win-trash');
       if (tw) tw.info = '0 items in trash';
+    }
+    if (menu.title === 'Special' && item.label === 'Shut Down') {
+      s.windows.length = 0;
+      s.selectedIcon = null;
+      s.openMenu = null;
+      if (this.onShutDown) this.onShutDown();
+      return;
     }
     if (menu.title === 'Special' && item.label === 'Clean Up') {
       const front = this.frontWindow();

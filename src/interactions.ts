@@ -4,6 +4,7 @@ import type { FinderCanvas } from './finder';
 import type { BootHandle } from './boot';
 import type { KeycapInfo } from './enhance';
 import { SCREEN_W, SCREEN_H } from './finder';
+import { keyClack, clickTick } from './audio';
 
 // interaction-pass: two-state scripted camera (front full view <-> screen
 // close-up) + interactive Finder screen + pressable keycaps and mouse button.
@@ -147,9 +148,16 @@ export function setupInteractions(opts: {
     return keys.find((k) => k.mesh === hits[0].object) ?? null;
   }
 
+  // Special → Shut Down: dark tube again, camera pulls back to the front view
+  finder.onShutDown = () => {
+    if (boot) boot.shutDown();
+    zoomOut();
+  };
+
   const pressed = new Map<THREE.Mesh, number>();
   function pressKey(k: KeycapInfo): void {
     if (pressed.has(k.mesh)) return;
+    keyClack();
     k.mesh.position.y -= 0.014;
     pressed.set(k.mesh, window.setTimeout(() => {
       k.mesh.position.y += 0.014;
@@ -206,6 +214,7 @@ export function setupInteractions(opts: {
       }
       screenDrag = true;
       controls.enabled = false;
+      clickTick();
       finder.pointerDown(pt.x, pt.y);
       return;
     }
@@ -220,6 +229,7 @@ export function setupInteractions(opts: {
     raycaster.setFromCamera(pointer, camera);
     if (mouseButton && raycaster.intersectObject(mouseButton, false).length) {
       pressMouseButton();
+      clickTick();
       finder.pointerDown(finder.state.cursor.x, finder.state.cursor.y);
       window.setTimeout(() => finder.pointerUp(), 120);
     }

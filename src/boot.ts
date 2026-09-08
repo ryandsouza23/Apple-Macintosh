@@ -11,6 +11,8 @@ export type BootHandle = {
   state: () => BootState;
   powerOn: () => void;
   skip: () => void;
+  /** Special → Shut Down: back to the dark tube; the next click boots again. */
+  shutDown: () => void;
 };
 
 const INK: [number, number, number] = [10, 10, 10];
@@ -89,22 +91,31 @@ export function setupBoot(finder: FinderCanvas, onDone: () => void): BootHandle 
   }
 
   function finish(): void {
-    if (state === 'done') return;
+    if (state !== 'booting') return;
     state = 'done';
     cancelAnimationFrame(raf);
     video.pause();
-    video.removeAttribute('src');
-    video.load();
     finder.suspended = false;
     finder.draw();
     onDone();
   }
 
+  function shutDown(): void {
+    if (state !== 'done') return;
+    state = 'off';
+    video.pause();
+    video.currentTime = 0;
+    finder.suspended = true;
+    drawOffScreen();
+  }
+
+  video.addEventListener('ended', finish);
+  video.addEventListener('error', finish);
+
   function powerOn(): void {
     if (state !== 'off') return;
     state = 'booting';
-    video.addEventListener('ended', finish);
-    video.addEventListener('error', finish);
+    video.currentTime = 0;
     // the click is a user gesture, so try with sound; fall back to muted
     video.muted = false;
     video
@@ -127,5 +138,6 @@ export function setupBoot(finder: FinderCanvas, onDone: () => void): BootHandle 
     state: () => state,
     powerOn,
     skip: finish,
+    shutDown,
   };
 }

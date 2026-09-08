@@ -44,8 +44,36 @@ const screenMesh = runtime.meshes['screen-panel'];
 let screenTexture: THREE.CanvasTexture | null = null;
 let interactions: { update: () => void } | null = null;
 let boot: BootHandle | null = null;
+// subtle CRT glass: scanlines + corner vignette floating just above the tube
+function makeCrtOverlay(target: THREE.Mesh): void {
+  const c = document.createElement('canvas');
+  c.width = 512;
+  c.height = 342;
+  const g = c.getContext('2d')!;
+  g.clearRect(0, 0, 512, 342);
+  g.fillStyle = 'rgba(0,0,0,0.055)';
+  for (let y = 0; y < 342; y += 3) g.fillRect(0, y, 512, 1);
+  const v = g.createRadialGradient(256, 171, 120, 256, 171, 330);
+  v.addColorStop(0, 'rgba(0,0,0,0)');
+  v.addColorStop(1, 'rgba(0,0,0,0.20)');
+  g.fillStyle = v;
+  g.fillRect(0, 0, 512, 342);
+  const tex = new THREE.CanvasTexture(c);
+  tex.colorSpace = THREE.SRGBColorSpace;
+  target.geometry.computeBoundingBox();
+  const bb = target.geometry.boundingBox!;
+  const overlay = new THREE.Mesh(
+    new THREE.PlaneGeometry(bb.max.x - bb.min.x, bb.max.y - bb.min.y),
+    new THREE.MeshBasicMaterial({ map: tex, transparent: true, depthWrite: false }),
+  );
+  overlay.position.set(0, 0, bb.max.z + 0.0015);
+  overlay.renderOrder = 2;
+  target.add(overlay);
+}
+
 if (screenMesh) {
   screenTexture = applyScreenCanvas(screenMesh, finder.canvas);
+  makeCrtOverlay(screenMesh);
   finder.onChange = () => {
     if (screenTexture) screenTexture.needsUpdate = true;
   };
