@@ -58,13 +58,19 @@ export function setupTube(opts: {
   const panelH = bb.max.y - bb.min.y;
   const panelZ = bb.max.z + 0.002;
 
+  // wrap = the window's content area (clips the video like the canvas clip
+  // does); box = the video itself, positioned in page flow inside it
   const wrap = document.createElement('div');
   wrap.style.cssText =
-    'position:fixed;left:0;top:0;transform-origin:0 0;overflow:hidden;display:none;z-index:1;background:#000;';
+    'position:fixed;left:0;top:0;transform-origin:0 0;overflow:hidden;display:none;z-index:1;' +
+    'background:transparent;pointer-events:none;';
+  const box = document.createElement('div');
+  box.style.cssText = 'position:absolute;left:0;top:0;background:#000;pointer-events:auto;';
   const shade = document.createElement('div');
   shade.style.cssText =
     'position:absolute;inset:0;pointer-events:none;z-index:2;' +
     'background:repeating-linear-gradient(rgba(0,0,0,0) 0 2px, rgba(0,0,0,0.14) 2px 3px);';
+  wrap.appendChild(box);
   document.body.appendChild(wrap);
 
   let iframe: HTMLIFrameElement | null = null;
@@ -85,8 +91,8 @@ export function setupTube(opts: {
     iframe.style.cssText =
       'position:absolute;inset:0;width:100%;height:100%;border:0;' +
       'filter:grayscale(1) contrast(1.3) brightness(1.05);';
-    wrap.appendChild(iframe);
-    wrap.appendChild(shade);
+    box.appendChild(iframe);
+    box.appendChild(shade);
   }
 
   function teardown(): void {
@@ -124,23 +130,27 @@ export function setupTube(opts: {
       return;
     }
     ensureIframe(video!.id);
-    const r = finder.webVideoRect(win!);
+    const cr = finder.webContentRect(win!);
+    const vr = finder.webVideoRect(win!);
     const rect = renderer.domElement.getBoundingClientRect();
     camera.updateMatrixWorld();
     screenMesh.updateWorldMatrix(true, false);
     const corners = [
-      clientPoint(r.x, r.y, rect),
-      clientPoint(r.x + r.w, r.y, rect),
-      clientPoint(r.x + r.w, r.y + r.h, rect),
-      clientPoint(r.x, r.y + r.h, rect),
+      clientPoint(cr.x, cr.y, rect),
+      clientPoint(cr.x + cr.w, cr.y, rect),
+      clientPoint(cr.x + cr.w, cr.y + cr.h, rect),
+      clientPoint(cr.x, cr.y + cr.h, rect),
     ];
-    const baseW = Math.max(1, r.w);
-    const baseH = Math.max(1, r.h);
-    const m = matrix3dFor(baseW, baseH, corners);
+    const m = matrix3dFor(cr.w, cr.h, corners);
     if (!m) return;
-    wrap.style.width = `${baseW}px`;
-    wrap.style.height = `${baseH}px`;
+    wrap.style.width = `${cr.w}px`;
+    wrap.style.height = `${cr.h}px`;
     wrap.style.transform = m;
+    // the video sits in the page flow: window-relative, scrolled with content
+    box.style.left = `${vr.x - cr.x}px`;
+    box.style.top = `${vr.y - cr.y - finder.web.scroll}px`;
+    box.style.width = `${vr.w}px`;
+    box.style.height = `${vr.h}px`;
     wrap.style.display = 'block';
     shownLast = true;
   }

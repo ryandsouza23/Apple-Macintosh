@@ -1022,13 +1022,27 @@ export class FinderCanvas {
     this.draw();
   }
 
-  /** 16:9 video area inside the MacWeb window, in Finder coordinates. */
+  /** Fill in the rest of the video page (title/description/related) while
+   *  the given video keeps playing in place. */
+  webVideoPage(id: string, title: string, blocks: WebBlock[], links: string[]): void {
+    if (!this.web.video || this.web.video.id !== id) return;
+    this.web.title = title;
+    this.web.blocks = blocks;
+    this.web.links = links;
+    this.draw();
+  }
+
+  /** 16:9 video area at the top of the page flow (before scroll offset). */
   webVideoRect(w: FinderWindow): { x: number; y: number; w: number; h: number } {
     const availW = w.w - 30;
-    const availH = w.h - 62;
-    const vh = Math.min(availH, (availW * 9) / 16);
+    const vh = Math.min(150, (availW * 9) / 16);
     const vw = (vh * 16) / 9;
-    return { x: w.x + 10 + (availW - vw) / 2, y: w.y + 46, w: vw, h: vh };
+    return { x: w.x + 10 + (availW - vw) / 2, y: w.y + 48, w: vw, h: vh };
+  }
+
+  /** Content clip area of the MacWeb window (matches drawWebApp's clip). */
+  webContentRect(w: FinderWindow): { x: number; y: number; w: number; h: number } {
+    return { x: w.x + 2, y: w.y + 42, w: w.w - 16, h: w.h - 42 - 15 };
   }
 
   webLoaded(title: string, blocks: WebBlock[], links: string[], finalUrl: string): void {
@@ -1116,21 +1130,23 @@ export class FinderCanvas {
     ctx.rect(w.x + 2, top - 2, w.w - 16, bottom - top + 2);
     ctx.clip();
     ctx.fillStyle = BLACK;
+    let blockTopPad = 0;
     if (web.video) {
-      // black frame where the projected YouTube embed sits (tube.ts overlays it)
+      // black frame in the page flow; tube.ts pins the real embed onto it
       const r = this.webVideoRect(w);
-      ctx.fillRect(r.x, r.y, r.w, r.h);
+      const ry = r.y - web.scroll;
+      ctx.fillRect(r.x, ry, r.w, r.h);
       ctx.fillStyle = WHITE;
       ctx.beginPath();
-      ctx.moveTo(r.x + r.w / 2 - 8, r.y + r.h / 2 - 10);
-      ctx.lineTo(r.x + r.w / 2 + 12, r.y + r.h / 2);
-      ctx.lineTo(r.x + r.w / 2 - 8, r.y + r.h / 2 + 10);
+      ctx.moveTo(r.x + r.w / 2 - 8, ry + r.h / 2 - 10);
+      ctx.lineTo(r.x + r.w / 2 + 12, ry + r.h / 2);
+      ctx.lineTo(r.x + r.w / 2 - 8, ry + r.h / 2 + 10);
       ctx.closePath();
       ctx.fill();
       ctx.fillStyle = BLACK;
-      ctx.font = this.font(9);
-      ctx.fillText('YouTube — the picture plays on the tube itself', w.x + 12, r.y + r.h + 10);
-    } else if (web.loading) {
+      blockTopPad = r.y - (top + 10) + r.h + 14;
+    }
+    if (web.loading) {
       ctx.font = this.font(9);
       let host = web.url;
       try {
@@ -1145,7 +1161,7 @@ export class FinderCanvas {
       ctx.font = this.font(9);
       ctx.fillText(web.error, left, top + 36);
     } else {
-      let yy = top + 10 - web.scroll;
+      let yy = top + 10 + blockTopPad - web.scroll;
       for (const block of web.blocks) {
         const isH = block.style === 'h';
         const lineH = isH ? 16 : 12;
@@ -1176,7 +1192,7 @@ export class FinderCanvas {
         yy += lineH + (isH ? 6 : 4);
       }
       web.contentH = yy + web.scroll - top;
-      if (!web.blocks.length) {
+      if (!web.blocks.length && !web.video) {
         ctx.font = this.font(9);
         ctx.fillText('Blank page.', left, top + 24);
       }

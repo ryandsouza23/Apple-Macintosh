@@ -156,11 +156,70 @@ function extractYouTubeResults(html: string): { id: string; title: string }[] {
   return out;
 }
 
+function unescapeJson(s: string): string {
+  try {
+    return JSON.parse(`"${s}"`) as string;
+  } catch {
+    return s;
+  }
+}
+
+/** Build the rest of a watch page — title, channel, description, related. */
+function extractWatchPage(html: string): { title: string; blocks: WebBlock[]; links: string[] } | null {
+  const t = html.match(/"videoDetails":\{.{0,600}?"title":"((?:[^"\\]|\\.)*)"/s);
+  if (!t) return null;
+  const title = unescapeJson(t[1]);
+  const author = html.match(/"videoDetails":\{.{0,2000}?"author":"((?:[^"\\]|\\.)*)"/s);
+  const desc = html.match(/"shortDescription":"((?:[^"\\]|\\.)*)"/);
+  const blocks: WebBlock[] = [{ style: 'h', runs: [{ text: title }] }];
+  if (author) blocks.push({ style: 'p', runs: [{ text: `by ${unescapeJson(author[1])}` }] });
+  if (desc) {
+    unescapeJson(desc[1])
+      .split('\n')
+      .slice(0, 24)
+      .forEach((line) => {
+        const clean = line.trim();
+        if (clean) blocks.push({ style: 'p', runs: [{ text: clean.slice(0, 300) }] });
+      });
+  }
+  const links: string[] = [];
+  const seen = new Set<string>();
+  const related: WebBlock[] = [];
+  const collect = (re: RegExp): void => {
+    let m: RegExpExecArray | null;
+    while ((m = re.exec(html)) && links.length < 10) {
+      if (seen.has(m[1])) continue;
+      seen.add(m[1]);
+      links.push(`https://www.youtube.com/watch?v=${m[1]}`);
+      related.push({ style: 'li', runs: [{ text: unescapeJson(m[2]), link: links.length - 1 }] });
+    }
+  };
+  // sidebar (older markup), then the end-screen suggestions (always inline)
+  collect(/"compactVideoRenderer":\{"videoId":"([\w-]{11})".{0,3000}?"title":\{"simpleText":"((?:[^"\\]|\\.)*)"/g);
+  collect(/"endScreenVideoRenderer":\{"videoId":"([\w-]{11})".{0,2000}?"title":\{(?:"accessibility":.{0,300}?)?"simpleText":"((?:[^"\\]|\\.)*)"/g);
+  if (related.length) {
+    blocks.push({ style: 'h', runs: [{ text: 'Up next' }] });
+    blocks.push(...related);
+  }
+  return { title, blocks, links };
+}
+
 export function setupWeb(finder: FinderCanvas): void {
   finder.onWebNavigate = async (url: string) => {
     const watchId = youTubeWatchId(url);
     if (watchId) {
       finder.webShowVideo(watchId, url);
+      // fill in the page around the player: title, channel, description, up next
+      try {
+        const res = await fetch(`/api/fetch?url=${encodeURIComponent(`https://www.youtube.com/watch?v=${watchId}`)}`);
+        const json = (await res.json()) as { ok: boolean; body?: string };
+        if (json.ok && json.body) {
+          const page = extractWatchPage(json.body);
+          if (page) finder.webVideoPage(watchId, page.title, page.blocks, page.links);
+        }
+      } catch {
+        /* the player alone is fine */
+      }
       return;
     }
     finder.webLoading(url);
