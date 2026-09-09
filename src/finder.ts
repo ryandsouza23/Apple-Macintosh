@@ -156,7 +156,6 @@ export class FinderCanvas {
   guest = { notes: [] as string[], draft: '' };
   /** Desktop icons are draggable state, not constants. */
   deskIcons: { id: string; kind: FinderIcon['kind']; label: string; x: number; y: number }[] = [
-    { id: 'trash', kind: 'trash', label: 'Trash', x: 488, y: 300 },
     { id: 'about-ryan', kind: 'doc', label: 'About Ryan', x: 52, y: 64 },
     { id: 'music', kind: 'music', label: 'Music', x: 138, y: 64 },
     { id: 'macpaint', kind: 'paint', label: 'MacPaint', x: 224, y: 64 },
@@ -267,6 +266,23 @@ export class FinderCanvas {
     if (s.cursor.visible) this.drawCursor(ctx, s.cursor.x, s.cursor.y);
     ctx.restore();
     if (this.onChange) this.onChange();
+    this.syncEqTimer();
+  }
+
+  /** Keep a slow redraw ticking while music plays so the EQ bars bounce. */
+  private eqTimer = 0;
+  private syncEqTimer(): void {
+    const active =
+      !this.suspended &&
+      !this.music.isPaused &&
+      this.music.current >= 0 &&
+      this.state.windows.some((w) => w.player);
+    if (active && !this.eqTimer) {
+      this.eqTimer = window.setInterval(() => this.draw(), 150);
+    } else if (!active && this.eqTimer) {
+      window.clearInterval(this.eqTimer);
+      this.eqTimer = 0;
+    }
   }
 
   private drawMenuBar(ctx: CanvasRenderingContext2D): void {
@@ -453,10 +469,13 @@ export class FinderCanvas {
       if (shown !== label) shown += '…';
       ctx.fillText(shown, left + 24, ry + 11);
       if (selected && !m.isPaused) {
-        // tiny speaker bars
-        ctx.fillRect(right - 34, ry + 7, 2, 8);
-        ctx.fillRect(right - 30, ry + 4, 2, 11);
-        ctx.fillRect(right - 26, ry + 8, 2, 6);
+        // tiny equalizer — bars bounce while the track plays
+        const t = performance.now() / 1000;
+        const bh = (phase: number, speed: number) => 3 + Math.abs(Math.sin(t * speed + phase)) * 9;
+        const hs = [bh(0, 5.1), bh(1.4, 6.3), bh(2.6, 4.4)];
+        ctx.fillRect(right - 34, ry + 15 - hs[0], 2, hs[0]);
+        ctx.fillRect(right - 30, ry + 15 - hs[1], 2, hs[1]);
+        ctx.fillRect(right - 26, ry + 15 - hs[2], 2, hs[2]);
       }
       ctx.strokeStyle = '#c8c6bc';
       ctx.beginPath();
@@ -500,8 +519,8 @@ export class FinderCanvas {
     ctx.fillStyle = '#55534c';
     ctx.fillText(cur ? cur.artist : '', w.x + 66, w.y + 173);
     ctx.fillStyle = BLACK;
-    // transport
-    const cx = w.x + 200;
+    // transport — left-aligned under the title/artist block
+    const cx = w.x + 114.5;
     const ty = w.y + 182;
     ctx.strokeStyle = BLACK;
     ctx.fillStyle = BLACK;
@@ -569,7 +588,7 @@ export class FinderCanvas {
         return true;
       }
     }
-    const cx = w.x + 200;
+    const cx = w.x + 114.5;
     const ty = w.y + 182;
     if (y >= ty && y <= ty + 19) {
       if (x >= cx - 49 && x <= cx - 26) {
@@ -1263,7 +1282,11 @@ export class FinderCanvas {
     const d = this.iconDrag;
     this.iconDrag = null;
     if (!d || !d.moved) return;
-    const trash = this.deskIcons.find((di) => di.id === 'trash')!;
+    const trash = this.deskIcons.find((di) => di.id === 'trash');
+    if (!trash) {
+      this.draw();
+      return;
+    }
     if (d.win) {
       // window icon dropped on the Trash -> it moves to the Trash window
       const wx = d.win.x + d.icon.x;
