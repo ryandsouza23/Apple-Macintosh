@@ -17,30 +17,56 @@
       html, body { margin: 0; padding: 0; background: #f4f2ec; }
       #app { position: fixed; inset: 0; }
       canvas { display: block; }
+      /* a little System 1.0 window, ink on paper */
       #hints {
         position: fixed;
         left: 18px;
-        bottom: 16px;
-        font: 12px/1.7 'Geneva', 'Helvetica Neue', sans-serif;
-        color: #6e6a61;
-        background: rgba(244, 242, 236, 0.82);
-        border: 1px solid #d5d1c5;
-        border-radius: 6px;
-        padding: 10px 14px;
+        bottom: 18px;
+        font: 12px/1.75 'Geneva', 'Lucida Grande', 'Helvetica Neue', sans-serif;
+        color: #0a0a0a;
+        background: #eeeeec;
+        border: 1.5px solid #0a0a0a;
+        box-shadow: 2px 2px 0 #0a0a0a;
         pointer-events: none;
         transition: opacity 1.2s;
         z-index: 2;
       }
-      #hints b { color: #3a3a38; font-weight: 600; }
+      #hints .bar {
+        position: relative;
+        height: 17px;
+        border-bottom: 1.5px solid #0a0a0a;
+        background:
+          repeating-linear-gradient(#eeeeec 0 2px, #0a0a0a 2px 3px);
+        background-clip: content-box;
+        padding: 2px 4px;
+      }
+      #hints .bar span {
+        position: absolute;
+        top: 1px;
+        left: 50%;
+        transform: translateX(-50%);
+        padding: 0 8px;
+        background: #eeeeec;
+        font-weight: 700;
+        font-size: 11px;
+        line-height: 15px;
+        letter-spacing: 0.02em;
+      }
+      #hints .body { padding: 8px 14px 9px; }
+      #hints b { font-weight: 700; }
+      #hints .dot { padding: 0 6px; }
       #hints.faded { opacity: 0; }
     </style>
   </head>
   <body>
     <div id="app"></div>
     <div id="hints">
-      <b>click the screen</b> to power it on — then menus, windows &amp; icons work<br />
-      <b>scroll</b> or <b>esc</b> to see the whole computer &nbsp;·&nbsp; click the screen to go back<br />
-      <b>type</b> to press the keys &nbsp;·&nbsp; click the mouse to click
+      <div class="bar"><span>How to use</span></div>
+      <div class="body">
+        <b>click the screen</b> to power it on — then menus, windows &amp; icons work<br />
+        <b>scroll</b> or <b>esc</b> to see the whole computer<span class="dot">·</span>click the screen to go back<br />
+        <b>type</b> to press the keys<span class="dot">·</span>click the mouse to click
+      </div>
     </div>
     <script type="module" src="/src/main.ts"></script>
   </body>
