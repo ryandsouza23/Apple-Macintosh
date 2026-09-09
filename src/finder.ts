@@ -179,6 +179,7 @@ export class FinderCanvas {
     video: null as { id: string } | null,
   };
   private webLinkRects: { x: number; y: number; w: number; h: number; link: number }[] = [];
+  private webScrollDrag: number | null = null;
   /** Desktop icons are draggable state, not constants. */
   deskIcons: { id: string; kind: FinderIcon['kind']; label: string; x: number; y: number }[] = [
     { id: 'about-ryan', kind: 'doc', label: 'About Ryan', x: 52, y: 64 },
@@ -1578,6 +1579,8 @@ export class FinderCanvas {
       }
       // app content
       if (win.app) {
+        // dragging in MacWeb content scrolls the page (touch-friendly)
+        if (win.app === 'web' && y > win.y + 40) this.webScrollDrag = y;
         this.appClick(win, x, y);
         this.draw();
         return;
@@ -1635,6 +1638,10 @@ export class FinderCanvas {
       const { win, dx, dy } = this.dragTarget;
       win.x = Math.max(-win.w + 40, Math.min(SCREEN_W - 40, x - dx));
       win.y = Math.max(20, Math.min(SCREEN_H - 24, y - dy));
+    } else if (this.webScrollDrag !== null && this.frontWindow()?.app === 'web') {
+      const dy = this.webScrollDrag - y;
+      if (dy !== 0) this.webScrollBy(dy);
+      this.webScrollDrag = y;
     }
     this.moveCursor(x, y);
   }
@@ -1643,6 +1650,7 @@ export class FinderCanvas {
     this.dragTarget = null;
     this.painting = false;
     this.lastPaint = null;
+    this.webScrollDrag = null;
     const d = this.iconDrag;
     this.iconDrag = null;
     if (!d || !d.moved) return;

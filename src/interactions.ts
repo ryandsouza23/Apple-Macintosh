@@ -11,17 +11,27 @@ import { keyClack, clickTick } from './audio';
 // Spec: interaction-pass componentRefs root/screen-panel/key-field/mouse-button/kb-cable.
 
 // The whole computer, straight-on from the front. Scrolling or Esc always
-// returns here; clicking the screen glides back in.
+// returns here; clicking the screen glides back in. Distances stretch on
+// narrow (portrait/mobile) viewports so nothing crops.
 export const FRONT_TARGET = new THREE.Vector3(0.08, 0.52, 0.45);
-export const FRONT_POS = (() => {
+
+export function frontDistFor(aspect: number): number {
+  return 6.2 * Math.max(1, 1.12 / Math.max(aspect, 0.3));
+}
+
+export function zoomDistFor(aspect: number): number {
+  return Math.max(1.55, 1.72 / Math.max(aspect, 0.3));
+}
+
+export function frontPosFor(aspect: number): THREE.Vector3 {
   const pitch = (13 * Math.PI) / 180;
-  const dist = 6.2;
+  const dist = frontDistFor(aspect);
   return new THREE.Vector3(
     FRONT_TARGET.x,
     FRONT_TARGET.y + dist * Math.sin(pitch),
     FRONT_TARGET.z + dist * Math.cos(pitch),
   );
-})();
+}
 
 class CameraGlide {
   private active = false;
@@ -89,21 +99,39 @@ export function setupInteractions(opts: {
   }
 
   function zoomedIn(): boolean {
-    return camera.position.distanceTo(screenCenterWorld()) < 2.3;
+    const mid = (zoomDistFor(camera.aspect) + frontDistFor(camera.aspect)) / 2;
+    return camera.position.distanceTo(screenCenterWorld()) < mid;
   }
 
   function zoomToScreen(): void {
     const c = screenCenterWorld();
     const tgt = new THREE.Vector3(c.x, c.y, c.z);
-    const pos = new THREE.Vector3(c.x, c.y + 0.06, c.z + 1.55);
+    const pos = new THREE.Vector3(c.x, c.y + 0.06, c.z + zoomDistFor(camera.aspect));
     glide.start(tgt, pos);
   }
 
   function zoomOut(): void {
-    if (camera.position.distanceTo(FRONT_POS) > 0.05) {
-      glide.start(FRONT_TARGET.clone(), FRONT_POS.clone());
+    const pos = frontPosFor(camera.aspect);
+    if (camera.position.distanceTo(pos) > 0.05) {
+      glide.start(FRONT_TARGET.clone(), pos);
     }
   }
+
+  // orientation / resize: re-fit whichever pose we're resting in
+  window.addEventListener('resize', () => {
+    window.setTimeout(() => {
+      if (glide.isActive()) return;
+      if (zoomedIn()) {
+        const c = screenCenterWorld();
+        controls.target.set(c.x, c.y, c.z);
+        camera.position.set(c.x, c.y + 0.06, c.z + zoomDistFor(camera.aspect));
+      } else {
+        controls.target.copy(FRONT_TARGET);
+        camera.position.copy(frontPosFor(camera.aspect));
+      }
+      camera.lookAt(controls.target);
+    }, 60); // after main's aspect update
+  });
 
   const runtime = model.userData.sculptRuntime as { meshes: Record<string, THREE.Mesh> };
   const mouseButton = runtime.meshes['mouse-button'];
@@ -176,6 +204,57 @@ export function setupInteractions(opts: {
 
   let screenDrag = false;
 
+  // ---- touch support: double-tap, zoom toggle button, virtual keyboard ----
+  const coarse = window.matchMedia('(pointer: coarse)').matches;
+  let lastTap = { t: 0, x: 0, y: 0 };
+
+  const zoomBtn = document.createElement('button');
+  zoomBtn.textContent = 'Zoom to screen';
+  zoomBtn.style.cssText =
+    'position:fixed;right:14px;bottom:14px;z-index:3;padding:8px 14px;' +
+    "font:12px 'Geneva','Helvetica Neue',sans-serif;color:#0a0a0a;background:#eeeeec;" +
+    'border:1.5px solid #0a0a0a;box-shadow:2px 2px 0 #0a0a0a;border-radius:0;' +
+    (coarse ? '' : 'display:none;');
+  zoomBtn.addEventListener('click', () => {
+    if (zoomedIn()) zoomOut();
+    else zoomToScreen();
+  });
+  document.body.appendChild(zoomBtn);
+
+  // hidden input opens the phone keyboard for the Guestbook and MacWeb URLs
+  const mobileInput = document.createElement('input');
+  mobileInput.type = 'text';
+  mobileInput.autocapitalize = 'off';
+  mobileInput.autocomplete = 'off';
+  mobileInput.spellcheck = false;
+  mobileInput.style.cssText =
+    'position:fixed;left:0;bottom:0;width:12px;height:24px;font-size:16px;opacity:0.02;border:0;padding:0;';
+  document.body.appendChild(mobileInput);
+
+  function typingContextActive(): boolean {
+    return finder.web.typing || finder.frontWindow()?.app === 'guestbook';
+  }
+
+  mobileInput.addEventListener('beforeinput', (e) => {
+    const ev = e as InputEvent;
+    if (ev.inputType === 'insertText' && ev.data) {
+      for (const ch of ev.data) finder.handleKey(ch);
+      e.preventDefault();
+    } else if (ev.inputType === 'deleteContentBackward') {
+      finder.handleKey('Backspace');
+      e.preventDefault();
+    } else if (ev.inputType === 'insertLineBreak') {
+      finder.handleKey('Enter');
+      e.preventDefault();
+    }
+  });
+  mobileInput.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') {
+      finder.handleKey('Enter');
+      e.preventDefault();
+    }
+  });
+
   dom.addEventListener('pointermove', (e) => {
     const pt = screenPointAt(e.clientX, e.clientY);
     if ((window as unknown as { __macDebug?: boolean }).__macDebug) {
@@ -216,6 +295,20 @@ export function setupInteractions(opts: {
       controls.enabled = false;
       clickTick();
       finder.pointerDown(pt.x, pt.y);
+      // touch double-tap = double-click (mobile browsers rarely send dblclick)
+      if (e.pointerType === 'touch') {
+        const now = performance.now();
+        if (now - lastTap.t < 400 && Math.abs(pt.x - lastTap.x) < 26 && Math.abs(pt.y - lastTap.y) < 26) {
+          finder.doubleClick(pt.x, pt.y);
+          lastTap = { t: 0, x: 0, y: 0 };
+        } else {
+          lastTap = { t: now, x: pt.x, y: pt.y };
+        }
+        // open the phone keyboard while a text field is active
+        window.setTimeout(() => {
+          if (typingContextActive()) mobileInput.focus({ preventScroll: true });
+        }, 50);
+      }
       return;
     }
     const cap = keycapAt(e.clientX, e.clientY);
@@ -267,6 +360,7 @@ export function setupInteractions(opts: {
 
   // physical typing presses the matching cap (and feeds the Guestbook when open)
   window.addEventListener('keydown', (e) => {
+    if (e.target === mobileInput) return; // fed via beforeinput instead
     if (finder.handleKey(e.key) && e.key.length === 1) e.preventDefault();
     const label = e.key.length === 1 ? e.key.toUpperCase() : e.key;
     const alias: Record<string, string> = {
@@ -284,10 +378,19 @@ export function setupInteractions(opts: {
     if (cap) pressKey(cap);
   });
 
+  let btnZoomed: boolean | null = null;
   return {
     update: () => {
       const dt = Math.min(clock.getDelta(), 0.05);
       glide.update(dt);
+      if (coarse) {
+        const z = zoomedIn();
+        if (z !== btnZoomed) {
+          btnZoomed = z;
+          zoomBtn.textContent = z ? 'See the whole Mac' : 'Zoom to screen';
+        }
+        if (document.activeElement === mobileInput && !typingContextActive()) mobileInput.blur();
+      }
     },
   };
 }

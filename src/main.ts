@@ -7,7 +7,7 @@ import {
 } from './createObjectModel';
 import { applyScreenCanvas, enhanceMacModel } from './enhance';
 import { FinderCanvas } from './finder';
-import { setupInteractions, FRONT_POS, FRONT_TARGET } from './interactions';
+import { setupInteractions, frontPosFor, FRONT_TARGET } from './interactions';
 import { setupSpotify } from './spotify';
 import { setupBoot, type BootHandle } from './boot';
 import { setupWeb, setupSharedGuestbook } from './webnet';
@@ -25,7 +25,7 @@ const scene = new THREE.Scene();
 scene.background = new THREE.Color(0xf4f2ec);
 
 const camera = new THREE.PerspectiveCamera(35, window.innerWidth / window.innerHeight, 0.01, 100);
-camera.position.copy(FRONT_POS);
+camera.position.copy(frontPosFor(camera.aspect));
 
 // the camera is fully scripted (front view <-> screen close-up); OrbitControls
 // only carries the look-at target for the glide math
