@@ -4,7 +4,7 @@
 import { lookup } from 'node:dns/promises';
 import { isIP } from 'node:net';
 
-const MAX_BYTES = 900 * 1024;
+const MAX_BYTES = 2600 * 1024; // YouTube result pages are heavy
 const TIMEOUT_MS = 9000;
 
 function isPrivateIp(ip) {

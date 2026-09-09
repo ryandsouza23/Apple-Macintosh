@@ -11,6 +11,7 @@ import { setupInteractions, FRONT_POS, FRONT_TARGET } from './interactions';
 import { setupSpotify } from './spotify';
 import { setupBoot, type BootHandle } from './boot';
 import { setupWeb, setupSharedGuestbook } from './webnet';
+import { setupTube } from './tube';
 
 const app = document.getElementById('app')!;
 
@@ -84,6 +85,8 @@ if (screenMesh) {
   // MacWeb proxy fetches + shared guestbook sync
   setupWeb(finder);
   setupSharedGuestbook(finder);
+  // YouTube playback projected onto the CRT glass
+  setupTube({ finder, camera, screenMesh, renderer });
 
   // powered-off tube until the first click on the screen boots the machine
   boot = setupBoot(finder, () => undefined);

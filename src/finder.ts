@@ -174,6 +174,9 @@ export class FinderCanvas {
     scroll: 0,
     contentH: 0,
     history: [] as string[],
+    /** Set when MacWeb is on a YouTube watch page — the real embed is
+     *  projected onto the CRT glass over this window by tube.ts. */
+    video: null as { id: string } | null,
   };
   private webLinkRects: { x: number; y: number; w: number; h: number; link: number }[] = [];
   /** Desktop icons are draggable state, not constants. */
@@ -894,7 +897,18 @@ export class FinderCanvas {
           web.typing = false;
           const raw = web.input.trim();
           if (raw) {
-            const url = /^[a-z]+:\/\//i.test(raw) ? raw : `https://${raw}`;
+            const ytQuery = /^yt:/i.test(raw)
+              ? raw.replace(/^yt:\s*/i, '')
+              : !raw.includes('.') && raw.includes(' ')
+                ? raw
+                : null;
+            const url = ytQuery
+              ? `https://www.youtube.com/results?search_query=${encodeURIComponent(ytQuery)}`
+              : /^[a-z]+:\/\//i.test(raw)
+                ? raw
+                : raw.includes('.')
+                  ? `https://${raw}`
+                  : `https://www.${raw}.com`; // bare word -> word.com
             this.webRequest(url);
           }
         } else if (key === 'Backspace') {
@@ -954,6 +968,7 @@ export class FinderCanvas {
       'https://en.wikipedia.org/wiki/Macintosh_128K',
       'https://news.ycombinator.com',
       'https://ryandsouza.me',
+      'https://www.youtube.com/results?search_query=macintosh+1984+commercial',
     ];
     web.blocks = [
       { style: 'h', runs: [{ text: 'Welcome to MacWeb' }] },
@@ -963,10 +978,13 @@ export class FinderCanvas {
       { style: 'li', runs: [{ text: 'Wikipedia: Macintosh 128K', link: 1 }] },
       { style: 'li', runs: [{ text: 'Hacker News', link: 2 }] },
       { style: 'li', runs: [{ text: 'ryandsouza.me', link: 3 }] },
+      { style: 'li', runs: [{ text: 'YouTube: the 1984 commercial', link: 4 }] },
+      { style: 'p', runs: [{ text: 'Tip: type yt: followed by words in the address bar to search YouTube. Videos play right on the tube.' }] },
     ];
     web.scroll = 0;
     web.error = '';
     web.loading = false;
+    web.video = null;
   }
 
   /** Navigate, keeping history for the back button. */
@@ -986,7 +1004,31 @@ export class FinderCanvas {
     this.web.loading = true;
     this.web.error = '';
     this.web.url = url;
+    this.web.video = null;
     this.draw();
+  }
+
+  /** Switch MacWeb to video mode for a YouTube watch page. */
+  webShowVideo(id: string, url: string): void {
+    const web = this.web;
+    web.video = { id };
+    web.url = url;
+    web.title = 'YouTube';
+    web.blocks = [];
+    web.links = [];
+    web.loading = false;
+    web.error = '';
+    web.scroll = 0;
+    this.draw();
+  }
+
+  /** 16:9 video area inside the MacWeb window, in Finder coordinates. */
+  webVideoRect(w: FinderWindow): { x: number; y: number; w: number; h: number } {
+    const availW = w.w - 30;
+    const availH = w.h - 62;
+    const vh = Math.min(availH, (availW * 9) / 16);
+    const vw = (vh * 16) / 9;
+    return { x: w.x + 10 + (availW - vw) / 2, y: w.y + 46, w: vw, h: vh };
   }
 
   webLoaded(title: string, blocks: WebBlock[], links: string[], finalUrl: string): void {
@@ -1074,7 +1116,21 @@ export class FinderCanvas {
     ctx.rect(w.x + 2, top - 2, w.w - 16, bottom - top + 2);
     ctx.clip();
     ctx.fillStyle = BLACK;
-    if (web.loading) {
+    if (web.video) {
+      // black frame where the projected YouTube embed sits (tube.ts overlays it)
+      const r = this.webVideoRect(w);
+      ctx.fillRect(r.x, r.y, r.w, r.h);
+      ctx.fillStyle = WHITE;
+      ctx.beginPath();
+      ctx.moveTo(r.x + r.w / 2 - 8, r.y + r.h / 2 - 10);
+      ctx.lineTo(r.x + r.w / 2 + 12, r.y + r.h / 2);
+      ctx.lineTo(r.x + r.w / 2 - 8, r.y + r.h / 2 + 10);
+      ctx.closePath();
+      ctx.fill();
+      ctx.fillStyle = BLACK;
+      ctx.font = this.font(9);
+      ctx.fillText('YouTube — the picture plays on the tube itself', w.x + 12, r.y + r.h + 10);
+    } else if (web.loading) {
       ctx.font = this.font(9);
       let host = web.url;
       try {

@@ -108,8 +108,61 @@ function parsePage(
   return { title, blocks, links };
 }
 
+function youTubeWatchId(url: string): string | null {
+  try {
+    const u = new URL(url);
+    if (u.hostname === 'youtu.be') return /^[\w-]{11}$/.test(u.pathname.slice(1, 12)) ? u.pathname.slice(1, 12) : null;
+    if (/(^|\.)youtube(-nocookie)?\.com$/.test(u.hostname)) {
+      if (u.pathname === '/watch') {
+        const v = u.searchParams.get('v');
+        return v && /^[\w-]{11}$/.test(v) ? v : null;
+      }
+      const m = u.pathname.match(/^\/(?:embed|shorts|live)\/([\w-]{11})/);
+      if (m) return m[1];
+    }
+  } catch {
+    /* not a url */
+  }
+  return null;
+}
+
+function isYouTubeListing(url: string): boolean {
+  try {
+    const u = new URL(url);
+    return /(^|\.)youtube\.com$/.test(u.hostname);
+  } catch {
+    return false;
+  }
+}
+
+/** Pull videoRenderer entries out of YouTube's HTML without a full JSON parse
+ *  (the page is huge and may be truncated by the proxy's size cap). */
+function extractYouTubeResults(html: string): { id: string; title: string }[] {
+  const out: { id: string; title: string }[] = [];
+  const seen = new Set<string>();
+  const re = /"videoRenderer":\{"videoId":"([\w-]{11})".{0,4000}?"title":\{"runs":\[\{"text":"((?:[^"\\]|\\.)*)"/g;
+  let m: RegExpExecArray | null;
+  while ((m = re.exec(html)) && out.length < 15) {
+    if (seen.has(m[1])) continue;
+    seen.add(m[1]);
+    let title = m[2];
+    try {
+      title = JSON.parse(`"${m[2]}"`) as string;
+    } catch {
+      /* keep escaped form */
+    }
+    out.push({ id: m[1], title });
+  }
+  return out;
+}
+
 export function setupWeb(finder: FinderCanvas): void {
   finder.onWebNavigate = async (url: string) => {
+    const watchId = youTubeWatchId(url);
+    if (watchId) {
+      finder.webShowVideo(watchId, url);
+      return;
+    }
     finder.webLoading(url);
     try {
       const res = await fetch(`/api/fetch?url=${encodeURIComponent(url)}`);
@@ -125,6 +178,19 @@ export function setupWeb(finder: FinderCanvas): void {
         return;
       }
       const finalUrl = json.url || url;
+      if (isYouTubeListing(finalUrl)) {
+        const vids = extractYouTubeResults(json.body);
+        if (vids.length) {
+          const links = vids.map((v) => `https://www.youtube.com/watch?v=${v.id}`);
+          const blocks: WebBlock[] = [
+            { style: 'h', runs: [{ text: 'YouTube' }] },
+            ...vids.map((v, i) => ({ style: 'li' as const, runs: [{ text: v.title, link: i }] })),
+            { style: 'p', runs: [{ text: 'Click a title to play it on the tube. Type yt: words to search again.' }] },
+          ];
+          finder.webLoaded('YouTube', blocks, links, finalUrl);
+          return;
+        }
+      }
       const { title, blocks, links } = parsePage(json.body, finalUrl, json.contentType || '');
       finder.webLoaded(title, blocks, links, finalUrl);
     } catch {
