@@ -52,6 +52,9 @@ export async function proxyFetch(rawUrl) {
       headers: {
         'User-Agent': 'Mozilla/5.0 (compatible; MacWeb/1.0; +https://apple-macintosh.vercel.app)',
         Accept: 'text/html,text/plain;q=0.9,*/*;q=0.5',
+        // YouTube requests carry the Restricted Mode cookie so YouTube itself
+        // filters out mature results
+        ...(/(^|\.)youtube\.com$/.test(url.hostname) ? { Cookie: 'PREF=f2=8000000' } : {}),
       },
     });
     const finalUrl = new URL(res.url || url.href);

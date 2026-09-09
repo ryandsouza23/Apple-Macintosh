@@ -964,9 +964,6 @@ export class FinderCanvas {
     web.url = 'macweb://welcome';
     web.title = 'Welcome to MacWeb';
     web.links = [
-      'https://frogfind.com',
-      'https://en.wikipedia.org/wiki/Macintosh_128K',
-      'https://news.ycombinator.com',
       'https://ryandsouza.me',
       'https://www.youtube.com/results?search_query=macintosh+1984+commercial',
     ];
@@ -974,12 +971,8 @@ export class FinderCanvas {
       { style: 'h', runs: [{ text: 'Welcome to MacWeb' }] },
       { style: 'p', runs: [{ text: 'A text-only browser for a 1984 machine. Click the address bar, type a URL on your keyboard and press Enter. Underlined words are links.' }] },
       { style: 'p', runs: [{ text: 'Some places to visit:' }] },
-      { style: 'li', runs: [{ text: 'FrogFind — a search engine for old computers', link: 0 }] },
-      { style: 'li', runs: [{ text: 'Wikipedia: Macintosh 128K', link: 1 }] },
-      { style: 'li', runs: [{ text: 'Hacker News', link: 2 }] },
-      { style: 'li', runs: [{ text: 'ryandsouza.me', link: 3 }] },
-      { style: 'li', runs: [{ text: 'YouTube: the 1984 commercial', link: 4 }] },
-      { style: 'p', runs: [{ text: 'Tip: type yt: followed by words in the address bar to search YouTube. Videos play right on the tube.' }] },
+      { style: 'li', runs: [{ text: 'ryandsouza.me', link: 0 }] },
+      { style: 'li', runs: [{ text: 'YouTube: the 1984 commercial', link: 1 }] },
     ];
     web.scroll = 0;
     web.error = '';

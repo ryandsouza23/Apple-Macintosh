@@ -108,6 +108,32 @@ function parsePage(
   return { title, blocks, links };
 }
 
+// keep it family-friendly: whole-word profanity plus unambiguous adult terms
+const BLOCKED_WORDS = new Set([
+  'fuck', 'fucking', 'fucker', 'shit', 'bitch', 'cunt', 'asshole', 'dick', 'cock',
+  'pussy', 'slut', 'whore', 'tits', 'boobs', 'nude', 'nudes', 'naked', 'sex', 'sexy',
+  'hentai', 'rape', 'blowjob', 'handjob', 'dildo', 'orgy', 'cum', 'jizz', 'milf',
+  'bastard', 'retard', 'nigger', 'nigga', 'faggot', 'fag', 'chutiya', 'bhosdi',
+  'madarchod', 'behenchod', 'randi', 'lund', 'gaand',
+]);
+const BLOCKED_SUBSTRINGS = [
+  'porn', 'xvideo', 'xnxx', 'xhamster', 'redtube', 'youporn', 'onlyfans', 'nsfw',
+  'nigg', 'faggot',
+];
+
+function isBlockedContent(text: string): boolean {
+  let s = text;
+  try {
+    s = decodeURIComponent(text);
+  } catch {
+    /* keep raw */
+  }
+  s = s.toLowerCase();
+  for (const sub of BLOCKED_SUBSTRINGS) if (s.includes(sub)) return true;
+  for (const word of s.split(/[^a-z]+/)) if (word && BLOCKED_WORDS.has(word)) return true;
+  return false;
+}
+
 function youTubeWatchId(url: string): string | null {
   try {
     const u = new URL(url);
@@ -206,6 +232,10 @@ function extractWatchPage(html: string): { title: string; blocks: WebBlock[]; li
 
 export function setupWeb(finder: FinderCanvas): void {
   finder.onWebNavigate = async (url: string) => {
+    if (isBlockedContent(url)) {
+      finder.webError('This Macintosh keeps it clean. Try something else.');
+      return;
+    }
     const watchId = youTubeWatchId(url);
     if (watchId) {
       finder.webShowVideo(watchId, url);
