@@ -13,10 +13,47 @@
     <meta property="og:image" content="https://apple-macintosh.vercel.app/og.png" />
     <meta name="twitter:card" content="summary_large_image" />
     <meta name="twitter:image" content="https://apple-macintosh.vercel.app/og.png" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=EB+Garamond:ital,wght@0,400;0,500;1,400&display=swap" rel="stylesheet" />
     <style>
       html, body { margin: 0; padding: 0; background: #f4f2ec; }
       #app { position: fixed; inset: 0; }
       canvas { display: block; }
+      /* 1984-ad intro: cream paper, garamond ink, typed on */
+      #intro {
+        position: fixed;
+        inset: 0;
+        z-index: 10;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background: #f4f2ec;
+        transition: opacity 0.9s ease;
+      }
+      #intro.away { opacity: 0; pointer-events: none; }
+      #intro .line {
+        font-family: 'EB Garamond', 'Iowan Old Style', 'Palatino', 'Georgia', serif;
+        font-size: clamp(30px, 5.6vw, 68px);
+        color: #14140f;
+        letter-spacing: -0.01em;
+        transform: scaleX(0.94); /* apple-garamond narrowness */
+        white-space: nowrap;
+        padding: 0 24px;
+      }
+      #intro .caret {
+        display: inline-block;
+        width: 0.52em;
+        height: 0.08em;
+        margin-left: 0.07em;
+        background: #14140f;
+        vertical-align: baseline;
+        animation: intro-blink 1s steps(1) infinite;
+      }
+      @keyframes intro-blink { 50% { opacity: 0; } }
+      @media (max-width: 640px) {
+        #intro .line { white-space: normal; text-align: center; line-height: 1.15; }
+      }
       /* a little System 1.0 window, ink on paper */
       #hints {
         position: fixed;
@@ -59,6 +96,46 @@
     </style>
   </head>
   <body>
+    <div id="intro" aria-label="Introducing the Apple Macintosh">
+      <p class="line"><span id="intro-typed"></span><span class="caret"></span></p>
+    </div>
+    <script>
+      // starts typing immediately, while the module is still downloading;
+      // dissolves once the text is read AND the scene reports ready
+      (function () {
+        var text = 'Introducing the Apple Macintosh.';
+        var typed = document.getElementById('intro-typed');
+        var intro = document.getElementById('intro');
+        var i = 0;
+        var doneTyping = false;
+        var sceneReady = false;
+        var holdUntil = Infinity;
+        function tick() {
+          i += 1;
+          typed.textContent = text.slice(0, i);
+          if (i < text.length) {
+            setTimeout(tick, 46 + Math.random() * 42);
+          } else {
+            doneTyping = true;
+            holdUntil = Date.now() + 900;
+            maybeDismiss();
+          }
+        }
+        function maybeDismiss() {
+          if (!doneTyping || !sceneReady) return;
+          var wait = Math.max(0, holdUntil - Date.now());
+          setTimeout(function () {
+            intro.classList.add('away');
+            setTimeout(function () { intro.remove(); }, 1000);
+          }, wait);
+        }
+        window.__introSceneReady = function () {
+          sceneReady = true;
+          maybeDismiss();
+        };
+        setTimeout(tick, 350);
+      })();
+    </script>
     <div id="app"></div>
     <div id="hints">
       <div class="bar"><span>How to use</span></div>

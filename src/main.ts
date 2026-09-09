@@ -208,8 +208,14 @@ if (hints) {
   }, 4000);
 }
 
+let firstFrame = true;
 renderer.setAnimationLoop(() => {
   if (interactions) interactions.update();
   controls.update();
   renderer.render(scene, camera);
+  if (firstFrame) {
+    firstFrame = false;
+    // scene is on screen — let the intro overlay dissolve
+    (window as unknown as { __introSceneReady?: () => void }).__introSceneReady?.();
+  }
 });
