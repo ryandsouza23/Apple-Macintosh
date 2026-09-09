@@ -51,6 +51,20 @@
         animation: intro-blink 1s steps(1) infinite;
       }
       @keyframes intro-blink { 50% { opacity: 0; } }
+      #intro .byline {
+        position: absolute;
+        left: 0;
+        right: 0;
+        bottom: 34px;
+        text-align: center;
+        font-family: 'EB Garamond', 'Iowan Old Style', 'Palatino', 'Georgia', serif;
+        font-style: italic;
+        font-size: clamp(15px, 1.8vw, 20px);
+        color: #514f47;
+        opacity: 0;
+        animation: intro-byline 1.1s ease 2.1s forwards;
+      }
+      @keyframes intro-byline { to { opacity: 1; } }
       @media (max-width: 640px) {
         #intro .line { white-space: normal; text-align: center; line-height: 1.15; }
       }
@@ -98,6 +112,7 @@
   <body>
     <div id="intro" aria-label="Introducing the Apple Macintosh">
       <p class="line"><span id="intro-typed"></span><span class="caret"></span></p>
+      <p class="byline">by Ryan Dsouza</p>
     </div>
     <script>
       // starts typing immediately, while the module is still downloading;
