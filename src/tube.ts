@@ -7,9 +7,9 @@ import type { FinderCanvas } from './finder';
 // homography pins the iframe to those four corners every frame. Result: the
 // actual video plays "on the glass", greyscaled with scanlines to match.
 
-// must match the UV overscan in applyScreenCanvas / interactions
-const MX = 0.03 / 0.9;
-const MY = 0.03 / 0.74;
+// Finder coords map linearly onto the panel face: the UV overscan written by
+// applyScreenCanvas and the inverse in the raycast mapping cancel exactly, so
+// canvas x/512 IS the spatial fraction across the panel. No overscan here.
 const SCREEN_W = 512;
 const SCREEN_H = 342;
 
@@ -106,9 +106,7 @@ export function setupTube(opts: {
   function clientPoint(fx: number, fy: number, rect: DOMRect): { x: number; y: number } {
     const u = fx / SCREEN_W;
     const v = 1 - fy / SCREEN_H;
-    const uvx = u * (1 + 2 * MX) - MX;
-    const uvy = v * (1 + 2 * MY) - MY;
-    local.set(bb.min.x + uvx * panelW, bb.min.y + uvy * panelH, panelZ);
+    local.set(bb.min.x + u * panelW, bb.min.y + v * panelH, panelZ);
     const world = screenMesh.localToWorld(local.clone());
     const ndc = world.project(camera);
     return { x: rect.left + (ndc.x * 0.5 + 0.5) * rect.width, y: rect.top + (-ndc.y * 0.5 + 0.5) * rect.height };
