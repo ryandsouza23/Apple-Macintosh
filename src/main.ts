@@ -10,6 +10,7 @@ import { FinderCanvas } from './finder';
 import { setupInteractions, FRONT_POS, FRONT_TARGET } from './interactions';
 import { setupSpotify } from './spotify';
 import { setupBoot, type BootHandle } from './boot';
+import { setupWeb, setupSharedGuestbook } from './webnet';
 
 const app = document.getElementById('app')!;
 
@@ -80,6 +81,9 @@ if (screenMesh) {
   finder.draw();
   // Music: 1-bit player window on the CRT, audio via the hidden Spotify embed
   setupSpotify(finder);
+  // MacWeb proxy fetches + shared guestbook sync
+  setupWeb(finder);
+  setupSharedGuestbook(finder);
 
   // powered-off tube until the first click on the screen boots the machine
   boot = setupBoot(finder, () => undefined);

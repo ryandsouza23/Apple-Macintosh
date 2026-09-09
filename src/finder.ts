@@ -12,7 +12,7 @@ const WHITE = '#eeeeec';
 export type FinderIcon = {
   id: string;
   label: string;
-  kind: 'folder' | 'app' | 'doc' | 'trash' | 'disk' | 'floppy' | 'music' | 'paint' | 'puzzle' | 'calc' | 'book';
+  kind: 'folder' | 'app' | 'doc' | 'trash' | 'disk' | 'floppy' | 'music' | 'paint' | 'puzzle' | 'calc' | 'book' | 'web';
   x: number; // logical px, icon center
   y: number;
 };
@@ -28,7 +28,7 @@ export type FinderWindow = {
   icons: FinderIcon[];
   text?: string[]; // TeachText-style content
   player?: boolean; // Music: 1-bit player UI driven by the Spotify bridge
-  app?: 'about' | 'paint' | 'puzzle' | 'calc' | 'guestbook'; // built-in desk apps
+  app?: 'about' | 'paint' | 'puzzle' | 'calc' | 'guestbook' | 'web'; // built-in desk apps
 };
 
 export type MusicTrack = { uri: string; title: string; artist: string; art?: HTMLCanvasElement | null };
@@ -39,6 +39,9 @@ export type MusicState = {
   position: number; // seconds
   duration: number; // seconds
 };
+export type WebRun = { text: string; link?: number };
+export type WebBlock = { style: 'h' | 'p' | 'li' | 'pre'; runs: WebRun[] };
+
 export type MusicCommand =
   | { type: 'play-track'; index: number }
   | { type: 'toggle' }
@@ -142,6 +145,10 @@ export class FinderCanvas {
   onChange: (() => void) | null = null;
   onMusicCommand: ((cmd: MusicCommand) => void) | null = null;
   onShutDown: (() => void) | null = null;
+  /** MacWeb asks the network layer to fetch a page. */
+  onWebNavigate: ((url: string) => void) | null = null;
+  /** Guestbook committed a note (network layer may sync it). */
+  onGuestNote: ((note: string) => void) | null = null;
   /** While true (boot sequence), draw() is a no-op so boot frames own the canvas. */
   suspended = false;
 
@@ -154,6 +161,21 @@ export class FinderCanvas {
   puzzle = { tiles: [] as number[], moves: 0 };
   calc = { display: '0', acc: null as number | null, op: null as string | null, fresh: true };
   guest = { notes: [] as string[], draft: '' };
+  // --- MacWeb state ---
+  web = {
+    url: '',
+    input: '',
+    typing: false,
+    loading: false,
+    error: '',
+    title: 'MacWeb',
+    blocks: [] as WebBlock[],
+    links: [] as string[],
+    scroll: 0,
+    contentH: 0,
+    history: [] as string[],
+  };
+  private webLinkRects: { x: number; y: number; w: number; h: number; link: number }[] = [];
   /** Desktop icons are draggable state, not constants. */
   deskIcons: { id: string; kind: FinderIcon['kind']; label: string; x: number; y: number }[] = [
     { id: 'about-ryan', kind: 'doc', label: 'About Ryan', x: 52, y: 64 },
@@ -162,7 +184,8 @@ export class FinderCanvas {
     { id: 'puzzle', kind: 'puzzle', label: 'Puzzle', x: 310, y: 64 },
     { id: 'calculator', kind: 'calc', label: 'Calculator', x: 396, y: 64 },
     { id: 'guestbook', kind: 'book', label: 'Guestbook', x: 52, y: 150 },
-    { id: 'system-folder', kind: 'folder', label: 'System Folder', x: 138, y: 150 },
+    { id: 'macweb', kind: 'web', label: 'MacWeb', x: 138, y: 150 },
+    { id: 'system-folder', kind: 'folder', label: 'System Folder', x: 224, y: 150 },
   ];
   trashed: FinderIcon[] = [];
   private iconDrag: {
@@ -408,6 +431,7 @@ export class FinderCanvas {
     else if (w.app === 'calc') this.drawCalcApp(ctx, w);
     else if (w.app === 'guestbook') this.drawGuestApp(ctx, w);
     else if (w.app === 'about') this.drawAboutApp(ctx, w);
+    else if (w.app === 'web') this.drawWebApp(ctx, w);
     if (w.text) {
       ctx.font = this.font(9);
       ctx.fillStyle = BLACK;
@@ -863,6 +887,36 @@ export class FinderCanvas {
   /** Physical keystrokes reach the guestbook when it is the front window. */
   handleKey(key: string): boolean {
     const front = this.frontWindow();
+    if (front && front.app === 'web') {
+      const web = this.web;
+      if (web.typing) {
+        if (key === 'Enter') {
+          web.typing = false;
+          const raw = web.input.trim();
+          if (raw) {
+            const url = /^[a-z]+:\/\//i.test(raw) ? raw : `https://${raw}`;
+            this.webRequest(url);
+          }
+        } else if (key === 'Backspace') {
+          web.input = web.input.slice(0, -1);
+        } else if (key.length === 1 && web.input.length < 160) {
+          web.input += key;
+        } else {
+          return false;
+        }
+        this.draw();
+        return true;
+      }
+      if (key === 'ArrowUp') {
+        this.webScrollBy(-40);
+        return true;
+      }
+      if (key === 'ArrowDown') {
+        this.webScrollBy(40);
+        return true;
+      }
+      return false;
+    }
     if (!front || front.app !== 'guestbook') return false;
     if (key === 'Enter') {
       const note = this.guest.draft.trim();
@@ -874,6 +928,7 @@ export class FinderCanvas {
         } catch {
           /* fine */
         }
+        if (this.onGuestNote) this.onGuestNote(note);
       }
       this.guest.draft = '';
     } else if (key === 'Backspace') {
@@ -885,6 +940,228 @@ export class FinderCanvas {
     }
     this.draw();
     return true;
+  }
+
+  // ---------- MacWeb ----------
+
+  /** Built-in start page, no network needed. */
+  webHome(): void {
+    const web = this.web;
+    web.url = 'macweb://welcome';
+    web.title = 'Welcome to MacWeb';
+    web.links = [
+      'https://frogfind.com',
+      'https://en.wikipedia.org/wiki/Macintosh_128K',
+      'https://news.ycombinator.com',
+      'https://ryandsouza.me',
+    ];
+    web.blocks = [
+      { style: 'h', runs: [{ text: 'Welcome to MacWeb' }] },
+      { style: 'p', runs: [{ text: 'A text-only browser for a 1984 machine. Click the address bar, type a URL on your keyboard and press Enter. Underlined words are links.' }] },
+      { style: 'p', runs: [{ text: 'Some places to visit:' }] },
+      { style: 'li', runs: [{ text: 'FrogFind — a search engine for old computers', link: 0 }] },
+      { style: 'li', runs: [{ text: 'Wikipedia: Macintosh 128K', link: 1 }] },
+      { style: 'li', runs: [{ text: 'Hacker News', link: 2 }] },
+      { style: 'li', runs: [{ text: 'ryandsouza.me', link: 3 }] },
+    ];
+    web.scroll = 0;
+    web.error = '';
+    web.loading = false;
+  }
+
+  /** Navigate, keeping history for the back button. */
+  private webRequest(url: string, push = true): void {
+    if (push && this.web.url) this.web.history.push(this.web.url);
+    if (this.web.history.length > 40) this.web.history.shift();
+    if (url === 'macweb://welcome') {
+      this.webHome();
+      this.draw();
+      return;
+    }
+    if (this.onWebNavigate) this.onWebNavigate(url);
+    else this.webError('no network layer');
+  }
+
+  webLoading(url: string): void {
+    this.web.loading = true;
+    this.web.error = '';
+    this.web.url = url;
+    this.draw();
+  }
+
+  webLoaded(title: string, blocks: WebBlock[], links: string[], finalUrl: string): void {
+    const web = this.web;
+    web.loading = false;
+    web.error = '';
+    web.title = title;
+    web.blocks = blocks;
+    web.links = links;
+    web.url = finalUrl;
+    web.scroll = 0;
+    this.draw();
+  }
+
+  webError(msg: string): void {
+    this.web.loading = false;
+    this.web.error = msg;
+    this.draw();
+  }
+
+  private webScrollBy(dy: number): void {
+    const win = this.state.windows.find((w) => w.id === 'win-web');
+    const viewH = win ? win.h - 44 - 14 : 200;
+    const max = Math.max(0, this.web.contentH - viewH + 16);
+    this.web.scroll = Math.max(0, Math.min(max, this.web.scroll + dy));
+    this.draw();
+  }
+
+  /** Wheel over the open MacWeb window scrolls the page; returns handled. */
+  webWheel(x: number, y: number, deltaY: number): boolean {
+    const front = this.frontWindow();
+    if (!front || front.app !== 'web') return false;
+    if (x < front.x || x > front.x + front.w || y < front.y || y > front.y + front.h) return false;
+    this.webScrollBy(deltaY * 0.5);
+    return true;
+  }
+
+  /** Escape cancels URL typing (camera stays put); returns handled. */
+  consumeEscape(): boolean {
+    if (this.web.typing && this.frontWindow()?.app === 'web') {
+      this.web.typing = false;
+      this.draw();
+      return true;
+    }
+    return false;
+  }
+
+  private drawWebApp(ctx: CanvasRenderingContext2D, w: FinderWindow): void {
+    const web = this.web;
+    this.webLinkRects = [];
+    ctx.textBaseline = 'middle';
+    // back button
+    ctx.strokeStyle = BLACK;
+    ctx.fillStyle = BLACK;
+    ctx.strokeRect(w.x + 8.5, w.y + 22.5, 17, 15);
+    ctx.beginPath();
+    ctx.moveTo(w.x + 21, w.y + 26);
+    ctx.lineTo(w.x + 13, w.y + 30);
+    ctx.lineTo(w.x + 21, w.y + 34);
+    ctx.closePath();
+    ctx.fill();
+    // address bar
+    const barX = w.x + 30;
+    const barW = w.w - 30 - 12;
+    ctx.strokeRect(barX + 0.5, w.y + 22.5, barW, 15);
+    ctx.save();
+    ctx.beginPath();
+    ctx.rect(barX + 3, w.y + 23, barW - 6, 14);
+    ctx.clip();
+    ctx.font = this.font(9);
+    ctx.fillStyle = BLACK;
+    const shown = web.typing ? `${web.input}_` : web.url || 'click here, type a URL, press Enter';
+    ctx.fillStyle = web.typing || web.url ? BLACK : '#7a776d';
+    const tw = ctx.measureText(shown).width;
+    ctx.fillText(shown, Math.min(barX + 5, barX + barW - 8 - tw), w.y + 30.5);
+    ctx.restore();
+
+    // content
+    const top = w.y + 44;
+    const left = w.x + 10;
+    const right = w.x + w.w - 20;
+    const bottom = w.y + w.h - 15;
+    ctx.save();
+    ctx.beginPath();
+    ctx.rect(w.x + 2, top - 2, w.w - 16, bottom - top + 2);
+    ctx.clip();
+    ctx.fillStyle = BLACK;
+    if (web.loading) {
+      ctx.font = this.font(9);
+      let host = web.url;
+      try {
+        host = new URL(web.url).hostname;
+      } catch {
+        /* keep raw */
+      }
+      ctx.fillText(`Connecting to ${host}…`, left, top + 24);
+    } else if (web.error) {
+      ctx.font = this.font(10, true);
+      ctx.fillText('Cannot open page', left, top + 20);
+      ctx.font = this.font(9);
+      ctx.fillText(web.error, left, top + 36);
+    } else {
+      let yy = top + 10 - web.scroll;
+      for (const block of web.blocks) {
+        const isH = block.style === 'h';
+        const lineH = isH ? 16 : 12;
+        ctx.font = this.font(isH ? 11 : 9, isH);
+        const indent = block.style === 'li' ? 14 : 0;
+        if (block.style === 'li' && yy > top - lineH && yy < bottom + lineH) {
+          ctx.fillText('•', left + 3, yy);
+        }
+        let cx = left + indent;
+        for (const run of block.runs) {
+          const words = run.text.split(/\s+/).filter((s) => s.length);
+          for (const word of words) {
+            const ww = ctx.measureText(word).width;
+            if (cx + ww > right && cx > left + indent) {
+              cx = left + indent;
+              yy += lineH;
+            }
+            if (yy > top - lineH && yy < bottom + lineH) {
+              ctx.fillText(word, cx, yy);
+              if (run.link !== undefined) {
+                ctx.fillRect(cx, yy + 5, ww, 1);
+                this.webLinkRects.push({ x: cx, y: yy - 6, w: ww + 4, h: 12, link: run.link });
+              }
+            }
+            cx += ww + ctx.measureText(' ').width;
+          }
+        }
+        yy += lineH + (isH ? 6 : 4);
+      }
+      web.contentH = yy + web.scroll - top;
+      if (!web.blocks.length) {
+        ctx.font = this.font(9);
+        ctx.fillText('Blank page.', left, top + 24);
+      }
+    }
+    ctx.restore();
+  }
+
+  private webClick(w: FinderWindow, x: number, y: number): boolean {
+    const web = this.web;
+    // back
+    if (x >= w.x + 8 && x <= w.x + 26 && y >= w.y + 22 && y <= w.y + 38) {
+      const prev = web.history.pop();
+      if (prev) this.webRequest(prev, false);
+      return true;
+    }
+    // address bar focuses typing
+    if (x >= w.x + 30 && x <= w.x + w.w - 12 && y >= w.y + 22 && y <= w.y + 38) {
+      web.typing = true;
+      web.input = '';
+      return true;
+    }
+    // scroll arrows on the right chrome
+    if (x >= w.x + w.w - 14) {
+      if (y <= w.y + 44) {
+        this.webScrollBy(-48);
+        return true;
+      }
+      if (y >= w.y + w.h - 34) {
+        this.webScrollBy(48);
+        return true;
+      }
+    }
+    // links
+    for (const r of this.webLinkRects) {
+      if (x >= r.x - 2 && x <= r.x + r.w && y >= r.y && y <= r.y + r.h) {
+        const target = web.links[r.link];
+        if (target) this.webRequest(target);
+        return true;
+      }
+    }
+    return true; // clicks inside the window shouldn't fall through
   }
 
   private drawAboutApp(ctx: CanvasRenderingContext2D, w: FinderWindow): void {
@@ -931,6 +1208,7 @@ export class FinderCanvas {
     if (w.app === 'puzzle') return this.puzzleClick(w, x, y);
     if (w.app === 'calc') return this.calcClick(w, x, y);
     if (w.app === 'about') return this.aboutClick(w, x, y);
+    if (w.app === 'web') return this.webClick(w, x, y);
     return w.app === 'guestbook'; // clicking focuses it (front already)
   }
 
@@ -977,6 +1255,27 @@ export class FinderCanvas {
         ctx.moveTo(cx - 5, cy + i * 2.5 - 1);
         ctx.lineTo(cx + 5, cy + i * 2.5 - 1);
       }
+      ctx.stroke();
+    } else if (kind === 'web') {
+      // wireframe globe
+      ctx.fillStyle = selected ? BLACK : WHITE;
+      ctx.beginPath();
+      ctx.arc(cx, cy, 8, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.strokeStyle = selected ? WHITE : BLACK;
+      ctx.beginPath();
+      ctx.arc(cx, cy, 8, 0, Math.PI * 2);
+      ctx.stroke();
+      ctx.beginPath();
+      ctx.ellipse(cx, cy, 3.6, 8, 0, 0, Math.PI * 2);
+      ctx.stroke();
+      ctx.beginPath();
+      ctx.moveTo(cx - 8, cy);
+      ctx.lineTo(cx + 8, cy);
+      ctx.moveTo(cx - 7, cy - 4);
+      ctx.lineTo(cx + 7, cy - 4);
+      ctx.moveTo(cx - 7, cy + 4);
+      ctx.lineTo(cx + 7, cy + 4);
       ctx.stroke();
     } else if (kind === 'app') {
       this.drawPage(ctx, cx, cy, selected);
@@ -1439,6 +1738,15 @@ export class FinderCanvas {
     }
     if (icon.id === 'guestbook') {
       launch('win-guest', 'Guestbook', 'guestbook', 320, 194);
+      return;
+    }
+    if (icon.id === 'macweb') {
+      launch('win-web', 'MacWeb', 'web', 400, 290);
+      const ww = s.windows.find((win) => win.id === 'win-web')!;
+      ww.x = Math.min(ww.x, SCREEN_W - ww.w - 8);
+      ww.y = Math.min(ww.y, 34);
+      if (!this.web.blocks.length) this.webHome();
+      this.draw();
       return;
     }
     if (icon.id === 'music') {

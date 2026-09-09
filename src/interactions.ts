@@ -248,19 +248,21 @@ export function setupInteractions(opts: {
     if (pt) finder.doubleClick(pt.x, pt.y);
   });
 
-  // scrolling always pulls back to the full front view (OrbitControls zoom is
-  // disabled in main); clicking the screen glides back in
+  // scrolling pulls back to the full front view — unless the pointer is over
+  // an open MacWeb page, which scrolls like a real browser
   dom.addEventListener(
     'wheel',
     (e) => {
       e.preventDefault();
+      const pt = screenPointAt(e.clientX, e.clientY);
+      if (pt && zoomedIn() && (!boot || boot.state() === 'done') && finder.webWheel(pt.x, pt.y, e.deltaY)) return;
       zoomOut();
     },
     { passive: false },
   );
 
   window.addEventListener('keydown', (e) => {
-    if (e.key === 'Escape') zoomOut();
+    if (e.key === 'Escape' && !finder.consumeEscape()) zoomOut();
   });
 
   // physical typing presses the matching cap (and feeds the Guestbook when open)
