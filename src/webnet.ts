@@ -190,13 +190,27 @@ function unescapeJson(s: string): string {
   }
 }
 
-/** Build the rest of a watch page — title, channel, description, related. */
+/** Build the rest of a watch page — title, channel, description, related.
+ *  YouTube serves different page variants to home and datacenter IPs, so
+ *  every field has fallbacks. */
 function extractWatchPage(html: string): { title: string; blocks: WebBlock[]; links: string[] } | null {
-  const t = html.match(/"videoDetails":\{.{0,600}?"title":"((?:[^"\\]|\\.)*)"/s);
-  if (!t) return null;
-  const title = unescapeJson(t[1]);
-  const author = html.match(/"videoDetails":\{.{0,2000}?"author":"((?:[^"\\]|\\.)*)"/s);
-  const desc = html.match(/"shortDescription":"((?:[^"\\]|\\.)*)"/);
+  const t =
+    html.match(/"videoDetails":\{.{0,600}?"title":"((?:[^"\\]|\\.)*)"/s) ||
+    html.match(/"playerOverlayVideoDetailsRenderer":\{"title":\{"simpleText":"((?:[^"\\]|\\.)*)"/);
+  const titleTag = html.match(/<title>(.*?)(?: - YouTube)?<\/title>/s);
+  const title = t
+    ? unescapeJson(t[1])
+    : titleTag
+      ? titleTag[1].replace(/&amp;/g, '&').replace(/&#39;/g, "'").replace(/&quot;/g, '"')
+      : null;
+  if (!title) return null;
+  const author =
+    html.match(/"videoDetails":\{.{0,2000}?"author":"((?:[^"\\]|\\.)*)"/s) ||
+    html.match(/"playerOverlayVideoDetailsRenderer":\{.{0,400}?"subtitle":\{"runs":\[\{"text":"((?:[^"\\]|\\.)*)"/s) ||
+    html.match(/"ownerChannelName":"((?:[^"\\]|\\.)*)"/);
+  const desc =
+    html.match(/"shortDescription":"((?:[^"\\]|\\.)*)"/) ||
+    html.match(/"attributedDescription":\{"content":"((?:[^"\\]|\\.)*)"/);
   const blocks: WebBlock[] = [{ style: 'h', runs: [{ text: title }] }];
   if (author) blocks.push({ style: 'p', runs: [{ text: `by ${unescapeJson(author[1])}` }] });
   if (desc) {
