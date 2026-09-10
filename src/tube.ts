@@ -59,19 +59,72 @@ export function setupTube(opts: {
   const panelZ = bb.max.z + 0.002;
 
   // wrap = the window's content area (clips the video like the canvas clip
-  // does); box = the video itself, positioned in page flow inside it
+  // does); box = the video itself, positioned in page flow inside it;
+  // fx = filter layer (grayscale, or threshold+dither for the 1-bit look)
   const wrap = document.createElement('div');
   wrap.style.cssText =
     'position:fixed;left:0;top:0;transform-origin:0 0;overflow:hidden;display:none;z-index:1;' +
     'background:transparent;pointer-events:none;';
   const box = document.createElement('div');
   box.style.cssText = 'position:absolute;left:0;top:0;background:#000;pointer-events:auto;';
+  const fx = document.createElement('div');
+  fx.style.cssText = 'position:absolute;inset:0;';
   const shade = document.createElement('div');
   shade.style.cssText =
     'position:absolute;inset:0;pointer-events:none;z-index:2;' +
     'background:repeating-linear-gradient(rgba(0,0,0,0) 0 2px, rgba(0,0,0,0.14) 2px 3px);';
+  box.appendChild(fx);
   wrap.appendChild(box);
   document.body.appendChild(wrap);
+
+  // hard-threshold SVG filter: every pixel snaps to ink or paper
+  const svgNS = 'http://www.w3.org/2000/svg';
+  const svg = document.createElementNS(svgNS, 'svg');
+  svg.setAttribute('width', '0');
+  svg.setAttribute('height', '0');
+  svg.style.position = 'absolute';
+  const filter = document.createElementNS(svgNS, 'filter');
+  filter.setAttribute('id', 'macweb1bit');
+  filter.setAttribute('color-interpolation-filters', 'sRGB');
+  const desat = document.createElementNS(svgNS, 'feColorMatrix');
+  desat.setAttribute('type', 'saturate');
+  desat.setAttribute('values', '0');
+  filter.appendChild(desat);
+  const transfer = document.createElementNS(svgNS, 'feComponentTransfer');
+  for (const ch of ['R', 'G', 'B']) {
+    const fn = document.createElementNS(svgNS, `feFunc${ch}`);
+    fn.setAttribute('type', 'discrete');
+    fn.setAttribute('tableValues', '0 1');
+    transfer.appendChild(fn);
+  }
+  filter.appendChild(transfer);
+  svg.appendChild(filter);
+  document.body.appendChild(svg);
+
+  // 4x4 Bayer tile blended over the video before the threshold = ordered dither
+  const bayer = document.createElement('canvas');
+  bayer.width = 4;
+  bayer.height = 4;
+  {
+    const g = bayer.getContext('2d')!;
+    const M = [
+      [0, 8, 2, 10],
+      [12, 4, 14, 6],
+      [3, 11, 1, 9],
+      [15, 7, 13, 5],
+    ];
+    for (let y = 0; y < 4; y += 1) {
+      for (let x = 0; x < 4; x += 1) {
+        const v = Math.round(255 * (0.5 + ((M[y][x] + 0.5) / 16 - 0.5) * 0.9));
+        g.fillStyle = `rgb(${v},${v},${v})`;
+        g.fillRect(x, y, 1, 1);
+      }
+    }
+  }
+  const dither = document.createElement('div');
+  dither.style.cssText =
+    'position:absolute;inset:0;pointer-events:none;mix-blend-mode:overlay;' +
+    `background-image:url(${bayer.toDataURL()});background-size:4px 4px;image-rendering:pixelated;`;
 
   let iframe: HTMLIFrameElement | null = null;
   let currentId: string | null = null;
@@ -88,11 +141,23 @@ export function setupTube(opts: {
     iframe = document.createElement('iframe');
     iframe.src = `https://www.youtube-nocookie.com/embed/${id}?autoplay=1&rel=0&modestbranding=1&enablejsapi=1&playsinline=1`;
     iframe.allow = 'autoplay; encrypted-media; picture-in-picture';
-    iframe.style.cssText =
-      'position:absolute;inset:0;width:100%;height:100%;border:0;' +
-      'filter:grayscale(1) contrast(1.3) brightness(1.05);';
-    box.appendChild(iframe);
+    iframe.style.cssText = 'position:absolute;inset:0;width:100%;height:100%;border:0;';
+    fx.appendChild(iframe);
+    fx.appendChild(dither);
     box.appendChild(shade);
+  }
+
+  let oneBitLast: boolean | null = null;
+  function applyLook(oneBit: boolean): void {
+    if (oneBit === oneBitLast) return;
+    oneBitLast = oneBit;
+    if (oneBit) {
+      fx.style.filter = "url('#macweb1bit')";
+      dither.style.display = 'block';
+    } else {
+      fx.style.filter = 'grayscale(1) contrast(1.3) brightness(1.05)';
+      dither.style.display = 'none';
+    }
   }
 
   function teardown(): void {
@@ -128,6 +193,7 @@ export function setupTube(opts: {
       return;
     }
     ensureIframe(video!.id);
+    applyLook(finder.web.oneBit);
     const cr = finder.webContentRect(win!);
     const vr = finder.webVideoRect(win!);
     const rect = renderer.domElement.getBoundingClientRect();

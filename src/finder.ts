@@ -177,6 +177,8 @@ export class FinderCanvas {
     /** Set when MacWeb is on a YouTube watch page — the real embed is
      *  projected onto the CRT glass over this window by tube.ts. */
     video: null as { id: string } | null,
+    /** 1-bit threshold+dither look for the video (vs plain grayscale). */
+    oneBit: true,
   };
   private webLinkRects: { x: number; y: number; w: number; h: number; link: number }[] = [];
   private webScrollDrag: number | null = null;
@@ -1138,7 +1140,23 @@ export class FinderCanvas {
       ctx.closePath();
       ctx.fill();
       ctx.fillStyle = BLACK;
-      blockTopPad = r.y - (top + 10) + r.h + 14;
+      // 1-bit / gray toggle chips under the video, right-aligned
+      const cy = ry + r.h + 5;
+      ctx.font = this.font(9);
+      const chip = (cx: number, cw: number, label: string, on: boolean): void => {
+        ctx.strokeRect(cx + 0.5, cy + 0.5, cw, 14);
+        if (on) {
+          ctx.fillRect(cx, cy, cw, 15);
+          ctx.fillStyle = WHITE;
+        }
+        ctx.textAlign = 'center';
+        ctx.fillText(label, cx + cw / 2, cy + 8);
+        ctx.textAlign = 'left';
+        ctx.fillStyle = BLACK;
+      };
+      chip(r.x + r.w - 90, 46, '1-bit', this.web.oneBit);
+      chip(r.x + r.w - 40, 40, 'gray', !this.web.oneBit);
+      blockTopPad = r.y - (top + 10) + r.h + 28;
     }
     if (web.loading) {
       ctx.font = this.font(9);
@@ -1207,6 +1225,21 @@ export class FinderCanvas {
       web.typing = true;
       web.input = '';
       return true;
+    }
+    // 1-bit / gray toggle under the video
+    if (web.video) {
+      const vr = this.webVideoRect(w);
+      const cy = vr.y + vr.h + 5 - web.scroll;
+      if (y >= cy - 2 && y <= cy + 16) {
+        if (x >= vr.x + vr.w - 90 && x <= vr.x + vr.w - 44) {
+          web.oneBit = true;
+          return true;
+        }
+        if (x >= vr.x + vr.w - 40 && x <= vr.x + vr.w) {
+          web.oneBit = false;
+          return true;
+        }
+      }
     }
     // scroll arrows on the right chrome
     if (x >= w.x + w.w - 14) {
